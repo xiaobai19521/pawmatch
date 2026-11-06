@@ -1,0 +1,3945 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#090d0a">
+<meta name="description" content="PawMatch 宠配实验室：基于商品属性相似度的宠物 AI 选品导购。">
+<title>PawMatch · 宠物智选｜基于属性相似度的 AI 导购</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #090d0a;
+    --bg-deep: #070a08;
+    --panel: #101611;
+    --panel-raised: #151d16;
+    --surface: rgba(255, 255, 255, 0.032);
+    --surface-hover: rgba(255, 255, 255, 0.055);
+    --line: rgba(238, 245, 230, 0.09);
+    --line-strong: rgba(238, 245, 230, 0.15);
+    --text: #f2f5ed;
+    --text-soft: #c6cfbf;
+    --muted: #8c9788;
+    --muted-strong: #a6b09f;
+    --accent: #cdf694;
+    --accent-bright: #dcffae;
+    --accent-deep: #9fd664;
+    --accent-ink: #15200c;
+    --coral: #ffb181;
+    --teal: #8ee1ce;
+    --danger: #ff8d83;
+    --warning: #f4c97a;
+    --shadow-lg: 0 28px 80px rgba(0, 0, 0, 0.42);
+    --radius-xl: 24px;
+    --radius-lg: 18px;
+    --radius-md: 13px;
+    --sidebar-width: 348px;
+    --font: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --mono: "SFMono-Regular", "Cascadia Code", "Consolas", "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { height: 100%; }
+  body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  a { color: var(--accent); }
+  ::selection { background: rgba(205, 246, 148, 0.24); color: #fff; }
+  :focus-visible { outline: 2px solid rgba(205, 246, 148, 0.72); outline-offset: 3px; }
+  [hidden] { display: none !important; }
+
+  .icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .icon {
+    width: 18px;
+    height: 18px;
+    display: inline-block;
+    flex: none;
+    vertical-align: -0.16em;
+  }
+
+  .app {
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    height: 100dvh;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+      radial-gradient(80% 70% at 100% 0%, rgba(168, 222, 107, 0.055), transparent 52%),
+      radial-gradient(58% 60% at 0% 100%, rgba(255, 177, 129, 0.035), transparent 50%),
+      var(--bg);
+  }
+  .app::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 80;
+    pointer-events: none;
+    opacity: 0.028;
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* -------------------- Sidebar -------------------- */
+  .sidebar {
+    position: relative;
+    z-index: 20;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    overflow-y: auto;
+    padding: 27px 25px 20px;
+    border-right: 1px solid var(--line);
+    background:
+      linear-gradient(180deg, rgba(15, 21, 16, 0.94), rgba(8, 12, 9, 0.97)),
+      var(--panel);
+    box-shadow: 18px 0 60px rgba(0, 0, 0, 0.13);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  }
+  .sidebar::-webkit-scrollbar { width: 5px; }
+  .sidebar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 20px; }
+
+  .sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand { display: inline-flex; align-items: center; gap: 11px; min-width: 0; }
+  .brand-mark {
+    width: 43px;
+    height: 43px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    color: #18220e;
+    background: linear-gradient(145deg, #e0ffb4 0%, #c4ef8a 48%, #9ed15e 100%);
+    box-shadow:
+      0 9px 24px rgba(169, 224, 100, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.75),
+      inset 0 -1px 0 rgba(66, 91, 34, 0.24);
+  }
+  .brand-mark .icon { width: 23px; height: 23px; }
+  .brand-copy { min-width: 0; }
+  .brand-name { display: block; font-size: 17px; font-weight: 660; letter-spacing: -0.02em; line-height: 1.1; }
+  .brand-name span { color: var(--accent); }
+  .brand-sub {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 550;
+    letter-spacing: 0.185em;
+    text-transform: uppercase;
+  }
+  .sidebar .sidebar-close { display: none; }
+
+  .side-intro { padding: 2px 1px 0; }
+  .side-kicker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 9.5px;
+    font-weight: 550;
+    letter-spacing: 0.17em;
+    text-transform: uppercase;
+  }
+  .side-kicker::before {
+    content: "";
+    width: 18px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+  }
+  .side-intro h1 {
+    margin: 13px 0 11px;
+    font-size: clamp(29px, 2.4vw, 35px);
+    line-height: 1.32;
+    letter-spacing: -0.045em;
+    font-weight: 630;
+  }
+  .side-intro h1 em {
+    position: relative;
+    font-style: normal;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .side-intro h1 em::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 3px;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(205, 246, 148, 0.6), transparent);
+  }
+  .side-intro p {
+    margin: 0;
+    max-width: 280px;
+    color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.85;
+  }
+
+  .settings-card {
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 17px;
+    background:
+      linear-gradient(155deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.012) 55%, rgba(205, 246, 148, 0.02)),
+      rgba(7, 11, 8, 0.25);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  }
+  .section-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .section-title {
+    font-size: 10px;
+    font-weight: 620;
+    letter-spacing: 0.14em;
+    color: var(--muted-strong);
+    text-transform: uppercase;
+  }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border: 1px solid rgba(205, 246, 148, 0.13);
+    border-radius: 999px;
+    background: rgba(205, 246, 148, 0.05);
+    color: #bdcdb1;
+    font-size: 9.5px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .status-badge i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 9px rgba(205, 246, 148, 0.7);
+  }
+  .status-badge.is-api { border-color: rgba(142, 225, 206, 0.16); background: rgba(142, 225, 206, 0.055); color: #b9dcd3; }
+  .status-badge.is-api i { background: var(--teal); box-shadow: 0 0 9px rgba(142, 225, 206, 0.65); }
+  .status-badge.is-error { border-color: rgba(255, 141, 131, 0.2); background: rgba(255, 141, 131, 0.065); color: #e8b5ae; }
+  .status-badge.is-error i { background: var(--danger); box-shadow: 0 0 9px rgba(255, 141, 131, 0.65); }
+
+  .field { display: flex; flex-direction: column; gap: 7px; margin-top: 15px; }
+  .field-label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--text-soft);
+    font-size: 11px;
+    font-weight: 550;
+    letter-spacing: 0.01em;
+  }
+  .field-note { color: #71806e; font-size: 9px; font-weight: 450; letter-spacing: 0.02em; }
+  .input-wrap, .select-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(2, 6, 3, 0.34);
+    transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  }
+  .input-wrap:hover, .select-wrap:hover { border-color: rgba(238, 245, 230, 0.19); }
+  .input-wrap:focus-within, .select-wrap:focus-within {
+    border-color: rgba(205, 246, 148, 0.36);
+    background: rgba(2, 6, 3, 0.48);
+    box-shadow: 0 0 0 3px rgba(205, 246, 148, 0.07);
+  }
+  .input-wrap .lead-icon { width: 15px; height: 15px; margin-left: 11px; color: #7d8b79; }
+  .input-wrap input {
+    width: 100%;
+    min-width: 0;
+    height: 41px;
+    padding: 0 9px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: 12px;
+    letter-spacing: 0.015em;
+  }
+  .input-wrap input::placeholder { color: #5f6b5d; }
+  .input-wrap input[type="password"] { letter-spacing: 0.08em; }
+  .inline-btn {
+    width: 29px;
+    height: 29px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    margin-right: 5px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #758171;
+    transition: color 150ms ease, background 150ms ease;
+  }
+  .inline-btn:hover { color: var(--text-soft); background: rgba(255, 255, 255, 0.055); }
+  .inline-btn .icon { width: 15px; height: 15px; }
+  .field-hint { margin: 0; color: #738070; font-size: 9.5px; line-height: 1.65; }
+
+  .select-wrap select {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+    height: 41px;
+    padding: 0 36px 0 12px;
+    border: 0;
+    outline: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text-soft);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .select-wrap select option { background: #131a14; color: var(--text); }
+  .select-chevron {
+    position: absolute;
+    right: 11px;
+    width: 14px;
+    height: 14px;
+    color: #778473;
+    pointer-events: none;
+  }
+  .mode-copy {
+    min-height: 30px;
+    margin: 9px 1px 0;
+    color: #7e8b7a;
+    font-size: 9.5px;
+    line-height: 1.6;
+  }
+
+  .advanced { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--line); }
+  .advanced summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: #97a391;
+    font-size: 10.5px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .advanced summary::-webkit-details-marker { display: none; }
+  .advanced summary .icon { width: 14px; height: 14px; transition: transform 180ms ease; }
+  .advanced[open] summary .icon { transform: rotate(180deg); }
+  .advanced-body { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; }
+  .advanced-body .field { margin-top: 0; gap: 5px; }
+  .advanced-body .field-label { font-size: 9.5px; color: #879382; }
+  .advanced-body .input-wrap { border-color: rgba(238, 245, 230, 0.07); }
+  .advanced-body .input-wrap input { height: 35px; font-size: 10.5px; padding-left: 2px; }
+  .advanced-body .input-wrap .lead-icon { display: none; }
+  .advanced-body .input-wrap input:first-child { padding-left: 10px; }
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .advanced-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 3px; }
+  .advanced-note { color: #6f7b6b; font-size: 8.5px; line-height: 1.5; }
+  .text-btn {
+    flex: none;
+    padding: 4px 0;
+    border: 0;
+    background: transparent;
+    color: #9eaa97;
+    font-size: 9.5px;
+    text-decoration: underline;
+    text-decoration-color: rgba(158, 170, 151, 0.35);
+    text-underline-offset: 3px;
+  }
+  .text-btn:hover { color: var(--accent); }
+
+  .privacy-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 12px 13px;
+    border: 1px solid rgba(205, 246, 148, 0.1);
+    border-radius: 14px;
+    background: rgba(205, 246, 148, 0.035);
+    color: #879481;
+    font-size: 9.5px;
+    line-height: 1.7;
+  }
+  .privacy-card .icon { width: 14px; height: 14px; margin-top: 1px; color: #a8c684; }
+  .privacy-card strong { display: block; color: #b9c9ac; font-weight: 560; }
+  .sidebar-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: auto;
+    padding-top: 1px;
+    color: #596455;
+    font-size: 8.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .sidebar-footer span:last-child { color: #77866f; }
+
+  .drawer-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgba(3, 6, 4, 0.7);
+    backdrop-filter: blur(5px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 220ms ease, visibility 220ms ease;
+  }
+
+  /* -------------------- Main -------------------- */
+  .main {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(9, 13, 10, 0) 35%, rgba(9, 13, 10, 0.78) 100%);
+  }
+  .main::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(231, 241, 222, 0.027) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(231, 241, 222, 0.027) 1px, transparent 1px);
+    background-size: 76px 76px;
+    mask-image: radial-gradient(ellipse 78% 64% at 60% 29%, #000 0%, transparent 72%);
+    -webkit-mask-image: radial-gradient(ellipse 78% 64% at 60% 29%, #000 0%, transparent 72%);
+  }
+  .main::after {
+    content: "";
+    position: absolute;
+    top: -22%;
+    right: -10%;
+    z-index: -1;
+    width: 60vw;
+    height: 58vw;
+    max-width: 850px;
+    max-height: 850px;
+    pointer-events: none;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(197, 242, 138, 0.06), transparent 66%);
+    filter: blur(8px);
+  }
+
+  .topbar {
+    position: relative;
+    z-index: 5;
+    flex: none;
+    min-height: 82px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 17px 34px;
+    background: linear-gradient(180deg, rgba(9, 13, 10, 0.83), rgba(9, 13, 10, 0.28));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .topbar::after {
+    content: "";
+    position: absolute;
+    left: 34px;
+    right: 34px;
+    bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg, var(--line), rgba(238, 245, 230, 0.025) 68%, transparent);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .topbar .mobile-settings { display: none; }
+  .topbar-copy { min-width: 0; }
+  .topbar-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0 0 5px;
+    color: #6e7b69;
+    font-size: 8.5px;
+    font-weight: 560;
+    letter-spacing: 0.17em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .topbar-eyebrow::before {
+    content: "";
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 7px rgba(205, 246, 148, 0.6);
+  }
+  .topbar h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 590;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+  }
+  .topbar h2 .live-dot {
+    width: 5px;
+    height: 5px;
+    margin-top: 1px;
+    border-radius: 50%;
+    background: #8fae6c;
+    box-shadow: 0 0 0 3px rgba(143, 174, 108, 0.09);
+  }
+  .topbar-actions { display: flex; align-items: center; gap: 10px; flex: none; }
+  .save-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #717e6c;
+    font-size: 9.5px;
+    white-space: nowrap;
+    transition: color 160ms ease;
+  }
+  .save-state::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #6e8b56;
+    box-shadow: 0 0 0 3px rgba(110, 139, 86, 0.08);
+  }
+  .save-state.is-error { color: #c69088; }
+  .save-state.is-error::before { background: var(--danger); box-shadow: 0 0 0 3px rgba(255, 141, 131, 0.08); }
+  .clear-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.022);
+    color: #9da798;
+    font-size: 10.5px;
+    transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+  }
+  .clear-btn:hover { border-color: rgba(238, 245, 230, 0.18); background: rgba(255, 255, 255, 0.05); color: var(--text-soft); }
+  .clear-btn .icon { width: 14px; height: 14px; }
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.025);
+    color: var(--muted-strong);
+    transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+  }
+  .icon-btn:hover { border-color: var(--line-strong); background: rgba(255, 255, 255, 0.055); color: var(--text); }
+  .icon-btn .icon { width: 16px; height: 16px; }
+
+  /* -------------------- Empty state -------------------- */
+  .conversation {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.13) transparent;
+  }
+  .conversation::-webkit-scrollbar { width: 6px; }
+  .conversation::-webkit-scrollbar-track { background: transparent; }
+  .conversation::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 99px; }
+  .conversation-inner {
+    width: min(100%, 900px);
+    min-height: 100%;
+    margin: 0 auto;
+    padding: 24px 38px 22px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .welcome {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(14px, 3.6vh, 48px) 0 clamp(20px, 4vh, 38px);
+    animation: rise-in 520ms cubic-bezier(.2, .7, .2, 1) both;
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.12fr) minmax(220px, 0.88fr);
+    gap: 18px;
+    align-items: center;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #8a9684;
+    font-size: 9px;
+    font-weight: 550;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .eyebrow .icon { width: 12px; height: 12px; color: var(--accent); }
+  .hero-copy h1 {
+    margin: 17px 0 15px;
+    font-size: clamp(38px, 4.2vw, 54px);
+    font-weight: 640;
+    line-height: 1.16;
+    letter-spacing: -0.06em;
+  }
+  .hero-copy h1 em {
+    display: inline-block;
+    position: relative;
+    font-style: normal;
+    color: var(--accent);
+  }
+  .hero-copy h1 em::after {
+    content: "";
+    position: absolute;
+    left: 2px;
+    right: 0;
+    bottom: 4px;
+    height: 9px;
+    z-index: -1;
+    border-radius: 4px;
+    background: linear-gradient(90deg, rgba(205, 246, 148, 0.19), rgba(205, 246, 148, 0.01));
+  }
+  .hero-copy > p {
+    max-width: 470px;
+    margin: 0;
+    color: #98a591;
+    font-size: 13.5px;
+    line-height: 1.9;
+  }
+  .hero-copy > p strong { color: #bfcdb5; font-weight: 550; }
+
+  .orbit-wrap {
+    position: relative;
+    width: 100%;
+    min-height: 286px;
+    display: grid;
+    place-items: center;
+    isolation: isolate;
+  }
+  .orbit-wrap::before {
+    content: "";
+    position: absolute;
+    width: 58%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(205, 246, 148, 0.09), rgba(205, 246, 148, 0.015) 54%, transparent 72%);
+    filter: blur(9px);
+  }
+  .orbit {
+    position: relative;
+    width: 272px;
+    height: 272px;
+    display: grid;
+    place-items: center;
+    animation: orbit-breathe 7s ease-in-out infinite;
+  }
+  .orbit-ring {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .orbit-ring.outer {
+    inset: 5px;
+    border: 1px dashed rgba(205, 246, 148, 0.15);
+    animation: spin-slow 52s linear infinite;
+  }
+  .orbit-ring.outer::before, .orbit-ring.outer::after {
+    content: "";
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 11px rgba(205, 246, 148, 0.7);
+  }
+  .orbit-ring.outer::before { top: 16px; left: 53px; opacity: 0.8; }
+  .orbit-ring.outer::after { right: 28px; bottom: 41px; opacity: 0.5; }
+  .orbit-ring.middle {
+    inset: 36px;
+    border: 1px solid rgba(238, 245, 230, 0.07);
+  }
+  .orbit-ring.middle::before {
+    content: "";
+    position: absolute;
+    inset: 17px;
+    border: 1px solid rgba(205, 246, 148, 0.07);
+    border-radius: 50%;
+  }
+  .orbit-core {
+    position: relative;
+    z-index: 2;
+    width: 145px;
+    height: 145px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(205, 246, 148, 0.19);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 35% 24%, rgba(255, 255, 255, 0.08), transparent 42%),
+      linear-gradient(155deg, rgba(205, 246, 148, 0.125), rgba(13, 19, 14, 0.93) 66%);
+    box-shadow:
+      0 20px 60px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 0 0 9px rgba(205, 246, 148, 0.018);
+    backdrop-filter: blur(10px);
+  }
+  .orbit-core::after {
+    content: "";
+    position: absolute;
+    inset: -9px;
+    border: 1px solid rgba(205, 246, 148, 0.06);
+    border-radius: 50%;
+  }
+  .orbit-kicker {
+    color: #879880;
+    font-size: 8px;
+    font-weight: 560;
+    letter-spacing: 0.2em;
+  }
+  .orbit-core strong {
+    display: flex;
+    align-items: flex-start;
+    margin: 4px 0 2px;
+    color: var(--text);
+    font-size: 40px;
+    font-weight: 540;
+    line-height: 1;
+    letter-spacing: -0.075em;
+  }
+  .orbit-core strong small {
+    margin: 2px 0 0 3px;
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 560;
+    letter-spacing: 0;
+  }
+  .orbit-caption { color: #7c8b76; font-size: 9px; letter-spacing: 0.04em; }
+  .orbit-attr {
+    position: absolute;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 9px;
+    border: 1px solid rgba(238, 245, 230, 0.1);
+    border-radius: 999px;
+    background: rgba(14, 20, 15, 0.86);
+    box-shadow: 0 9px 26px rgba(0, 0, 0, 0.22);
+    color: #aebaa5;
+    font-size: 9.5px;
+    line-height: 1;
+    white-space: nowrap;
+    backdrop-filter: blur(9px);
+    animation: float-y 5.5s ease-in-out infinite;
+  }
+  .orbit-attr i {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 7px rgba(205, 246, 148, 0.55);
+  }
+  .orbit-attr.a1 { top: 31px; left: -6px; animation-delay: -0.8s; }
+  .orbit-attr.a2 { top: 64px; right: -15px; animation-delay: -2.1s; }
+  .orbit-attr.a3 { bottom: 56px; left: -13px; animation-delay: -3.2s; }
+  .orbit-attr.a4 { right: -2px; bottom: 26px; animation-delay: -1.4s; }
+  .orbit-attr.a4 i { background: var(--coral); box-shadow: 0 0 7px rgba(255, 177, 129, 0.55); }
+
+  .suggestions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 28px;
+  }
+  .suggestion {
+    position: relative;
+    min-height: 104px;
+    padding: 14px 14px 14px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 15px;
+    background:
+      linear-gradient(150deg, rgba(255, 255, 255, 0.036), rgba(255, 255, 255, 0.012)),
+      rgba(8, 12, 9, 0.22);
+    color: var(--text);
+    text-align: left;
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+  }
+  .suggestion::after {
+    content: "";
+    position: absolute;
+    right: -28px;
+    bottom: -36px;
+    width: 92px;
+    height: 92px;
+    border: 1px solid rgba(205, 246, 148, 0.055);
+    border-radius: 50%;
+    transition: border-color 180ms ease, transform 240ms ease;
+  }
+  .suggestion:hover {
+    transform: translateY(-2px);
+    border-color: rgba(205, 246, 148, 0.25);
+    background:
+      linear-gradient(150deg, rgba(205, 246, 148, 0.08), rgba(255, 255, 255, 0.015)),
+      rgba(8, 12, 9, 0.22);
+  }
+  .suggestion:hover::after { border-color: rgba(205, 246, 148, 0.12); transform: scale(1.1); }
+  .suggestion-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .s-index { color: #687563; font-size: 8.5px; font-weight: 560; letter-spacing: 0.14em; }
+  .s-arrow { width: 14px; height: 14px; color: #93a58a; opacity: 0; transform: translate(-3px, 3px); transition: opacity 180ms ease, transform 180ms ease; }
+  .suggestion:hover .s-arrow { opacity: 1; transform: none; }
+  .suggestion strong { display: block; font-size: 13px; font-weight: 570; letter-spacing: -0.01em; }
+  .s-sub { display: block; margin-top: 5px; color: #87947f; font-size: 10.25px; line-height: 1.55; }
+  .suggestion .s-tag {
+    display: inline-block;
+    margin-top: 9px;
+    padding: 2px 6px;
+    border: 1px solid rgba(205, 246, 148, 0.1);
+    border-radius: 5px;
+    color: #9bae91;
+    font-size: 8.5px;
+    letter-spacing: 0.03em;
+  }
+
+  .hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 17px;
+    margin-top: 24px;
+    padding-top: 15px;
+    border-top: 1px solid var(--line);
+    color: #74806f;
+    font-size: 9.5px;
+    letter-spacing: 0.015em;
+  }
+  .engine-state { display: inline-flex; align-items: center; gap: 7px; color: #8f9d88; }
+  .engine-state i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #99c76d;
+    box-shadow: 0 0 8px rgba(153, 199, 109, 0.4);
+  }
+  .hero-meta .meta-separator { width: 1px; height: 10px; background: var(--line); }
+  .hero-meta .meta-mono { font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.02em; color: #647060; }
+
+  /* -------------------- Messages -------------------- */
+  .messages { display: flex; flex-direction: column; gap: 26px; padding: 9px 0 24px; }
+  .messages:empty { display: none; }
+  .date-divider {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin: 1px 0 -3px;
+    color: #677262;
+    font-size: 8.5px;
+    font-weight: 550;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .date-divider::before, .date-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(238, 245, 230, 0.07), transparent);
+  }
+  .message { display: flex; align-items: flex-start; gap: 12px; max-width: 100%; }
+  .message.user { flex-direction: row-reverse; }
+  .message.is-new { animation: message-in 360ms cubic-bezier(.2, .7, .2, 1) both; }
+  .avatar {
+    width: 34px;
+    height: 34px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .assistant .avatar {
+    color: var(--accent);
+    background: linear-gradient(145deg, rgba(205, 246, 148, 0.12), rgba(205, 246, 148, 0.035));
+    border-color: rgba(205, 246, 148, 0.16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+  .assistant .avatar .icon { width: 18px; height: 18px; }
+  .user .avatar {
+    color: var(--coral);
+    background: linear-gradient(145deg, rgba(255, 177, 129, 0.13), rgba(255, 177, 129, 0.035));
+    border-color: rgba(255, 177, 129, 0.17);
+  }
+  .error .avatar { color: var(--danger); background: rgba(255, 141, 131, 0.08); border-color: rgba(255, 141, 131, 0.2); }
+  .message-body { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: min(720px, calc(100% - 46px)); }
+  .message.user .message-body { align-items: flex-end; }
+  .message-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+    min-height: 17px;
+    margin: 0 2px 7px;
+    color: #6f7b6a;
+    font-size: 9px;
+  }
+  .message.user .message-meta { flex-direction: row-reverse; }
+  .msg-author { color: #b9c5af; font-size: 11px; font-weight: 570; letter-spacing: 0.01em; }
+  .msg-time { color: #74806f; font-size: 9.5px; letter-spacing: 0.015em; }
+  .msg-source {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 5px;
+    border: 1px solid rgba(238, 245, 230, 0.075);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.025);
+    color: #819078;
+    font-size: 8px;
+    line-height: 1.45;
+    white-space: nowrap;
+  }
+  .msg-source.source-error { border-color: rgba(255, 141, 131, 0.16); background: rgba(255, 141, 131, 0.06); color: #dba59d; }
+  .bubble {
+    position: relative;
+    min-width: 0;
+    max-width: 100%;
+    padding: 14px 16px;
+    overflow-wrap: anywhere;
+    border: 1px solid var(--line);
+    border-radius: 17px;
+    background: rgba(255, 255, 255, 0.033);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.018);
+    color: #cbd4c3;
+    font-size: 14px;
+    line-height: 1.9;
+  }
+  .assistant .bubble { border-top-left-radius: 5px; }
+  .user .bubble {
+    color: #e8f1df;
+    border-color: rgba(205, 246, 148, 0.19);
+    background:
+      linear-gradient(145deg, rgba(205, 246, 148, 0.135), rgba(205, 246, 148, 0.055)),
+      rgba(18, 25, 16, 0.75);
+    border-top-right-radius: 5px;
+  }
+  .error .bubble {
+    border-color: rgba(255, 141, 131, 0.18);
+    background: linear-gradient(150deg, rgba(255, 141, 131, 0.08), rgba(255, 141, 131, 0.03));
+    color: #d7b5af;
+  }
+  .bubble:has(.message-images:first-child) { padding-top: 10px; }
+  .message-text > :first-child { margin-top: 0; }
+  .message-text > :last-child { margin-bottom: 0; }
+  .message-text p { margin: 0 0 10px; }
+  .message-text p:last-child { margin-bottom: 0; }
+  .message-text strong { color: #edf5e5; font-weight: 590; }
+  .message-text em { color: #dce9d2; }
+  .message-text a { color: #d3f6a3; text-decoration: underline; text-decoration-color: rgba(211, 246, 163, 0.35); text-underline-offset: 3px; }
+  .message-text code {
+    padding: 1px 5px;
+    border: 1px solid rgba(238, 245, 230, 0.1);
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.22);
+    color: #d8edc4;
+    font-family: var(--mono);
+    font-size: 0.88em;
+  }
+  .message-text pre {
+    margin: 10px 0;
+    padding: 12px 13px;
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(2, 5, 3, 0.38);
+    scrollbar-width: thin;
+  }
+  .message-text pre code { padding: 0; border: 0; background: transparent; font-size: 11px; line-height: 1.7; }
+  .message-text ul, .message-text ol { margin: 8px 0; padding-left: 20px; }
+  .message-text li { margin: 4px 0; padding-left: 2px; }
+  .message-text li::marker { color: #9bc875; }
+  .message-text h3, .message-text h4 { margin: 14px 0 7px; color: #edf5e5; font-size: 14.5px; line-height: 1.5; }
+  .message-text blockquote {
+    margin: 10px 0;
+    padding: 7px 11px;
+    border-left: 2px solid rgba(205, 246, 148, 0.36);
+    background: rgba(205, 246, 148, 0.035);
+    color: #a9b7a0;
+  }
+  .message-text hr { margin: 14px 0; border: 0; border-top: 1px solid var(--line); }
+  .user .message-text { white-space: pre-wrap; }
+  .user .message-text code { background: rgba(0, 0, 0, 0.14); }
+
+  .message-images {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    width: min(100%, 410px);
+    margin-bottom: 10px;
+  }
+  .message-images.single { grid-template-columns: minmax(0, 280px); }
+  .message-image {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 0.76;
+    overflow: hidden;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    border-radius: 10px;
+    background: #0a0e0b;
+    cursor: zoom-in;
+  }
+  .message-image img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform 240ms ease, opacity 220ms ease; }
+  .message-image:hover img { transform: scale(1.025); opacity: 0.88; }
+
+  .product-section { margin-top: 15px; }
+  .product-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+    color: #7c8b74;
+    font-size: 8.5px;
+    font-weight: 560;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+  .product-heading-label { display: inline-flex; align-items: center; gap: 6px; }
+  .product-heading .icon { width: 12px; height: 12px; color: #a9d27c; }
+  .product-heading-note { color: #586453; letter-spacing: 0.06em; }
+  .product-list { display: flex; flex-direction: column; gap: 7px; }
+  .product-card {
+    display: grid;
+    grid-template-columns: 57px minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px;
+    border: 1px solid rgba(238, 245, 230, 0.075);
+    border-radius: 12px;
+    background: rgba(3, 7, 4, 0.26);
+    transition: border-color 160ms ease, background 160ms ease;
+  }
+  .product-card:hover { border-color: rgba(205, 246, 148, 0.16); background: rgba(8, 13, 8, 0.42); }
+  .product-visual {
+    position: relative;
+    width: 57px;
+    height: 57px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 10px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 11.5px;
+    font-weight: 560;
+    letter-spacing: 0.06em;
+  }
+  .product-visual::after {
+    content: "";
+    position: absolute;
+    width: 38px;
+    height: 38px;
+    right: -13px;
+    bottom: -14px;
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 50%;
+  }
+  .product-visual .icon { position: absolute; top: 5px; right: 5px; width: 11px; height: 11px; color: rgba(255, 255, 255, 0.35); }
+  .tone-food { background: linear-gradient(145deg, rgba(183, 224, 122, 0.26), rgba(63, 89, 40, 0.13)); }
+  .tone-litter { background: linear-gradient(145deg, rgba(113, 202, 181, 0.24), rgba(40, 84, 77, 0.13)); }
+  .tone-toy { background: linear-gradient(145deg, rgba(255, 177, 129, 0.24), rgba(92, 55, 37, 0.13)); }
+  .tone-health { background: linear-gradient(145deg, rgba(242, 194, 116, 0.23), rgba(102, 77, 32, 0.13)); }
+  .tone-supply { background: linear-gradient(145deg, rgba(147, 174, 229, 0.21), rgba(43, 62, 100, 0.12)); }
+  .product-info { min-width: 0; }
+  .product-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .product-brand { color: #93a288; font-size: 9.5px; font-weight: 540; letter-spacing: 0.02em; white-space: nowrap; }
+  .product-match { color: #b4e181; font-size: 9px; font-weight: 590; white-space: nowrap; }
+  .product-name {
+    margin: 3px 0 5px;
+    overflow: hidden;
+    color: #e2ecdb;
+    font-size: 12px;
+    font-weight: 570;
+    line-height: 1.5;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .product-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 5px; }
+  .product-tag {
+    padding: 1.5px 6px;
+    border: 1px solid rgba(238, 245, 230, 0.09);
+    border-radius: 4px;
+    color: #94a58a;
+    font-size: 8.5px;
+    line-height: 1.55;
+  }
+  .product-reason {
+    display: -webkit-box;
+    overflow: hidden;
+    color: #879680;
+    font-size: 9.5px;
+    line-height: 1.55;
+    white-space: normal;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .product-price {
+    align-self: center;
+    padding-left: 2px;
+    color: #e3efd9;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 540;
+    white-space: nowrap;
+    text-align: right;
+  }
+  .product-price span { color: #7b8875; font-size: 8.5px; font-weight: 400; }
+  .message-guidance {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(238, 245, 230, 0.075);
+    color: #b6c3ad;
+    font-size: 12.5px;
+    line-height: 1.85;
+  }
+  .engine-note {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 12px;
+    color: #677562;
+    font-size: 8.5px;
+    line-height: 1.5;
+  }
+  .engine-note .icon { width: 10px; height: 10px; color: #829e70; }
+  .error-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 7px;
+    color: #e1c0ba;
+  }
+  .error-hint .icon { width: 15px; height: 15px; margin-top: 2px; color: var(--danger); }
+  .error-detail { color: #b5908a; font-size: 11.5px; line-height: 1.75; }
+
+  .typing-row { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 14px; }
+  .typing-bubble {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    border-top-left-radius: 5px;
+    background: rgba(255, 255, 255, 0.032);
+    color: #89977f;
+    font-size: 10px;
+  }
+  .typing-dots { display: inline-flex; align-items: center; gap: 3px; }
+  .typing-dots i {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #a8c98b;
+    animation: dot-wave 1.25s ease-in-out infinite;
+  }
+  .typing-dots i:nth-child(2) { animation-delay: 0.14s; }
+  .typing-dots i:nth-child(3) { animation-delay: 0.28s; }
+
+  /* -------------------- Composer -------------------- */
+  .composer-bar {
+    position: relative;
+    z-index: 6;
+    flex: none;
+    padding: 8px 32px max(14px, env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(9, 13, 10, 0) 0%, rgba(9, 13, 10, 0.78) 31%, var(--bg) 72%);
+  }
+  .composer-inner { width: min(100%, 900px); margin: 0 auto; padding: 0 6px; }
+  .attachment-strip { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 7px 8px; }
+  .attachment {
+    position: relative;
+    width: 57px;
+    height: 57px;
+    overflow: hidden;
+    border: 1px solid rgba(238, 245, 230, 0.13);
+    border-radius: 10px;
+    background: #0b100c;
+    animation: pop-in 180ms ease both;
+  }
+  .attachment img { width: 100%; height: 100%; display: block; object-fit: cover; opacity: 0.9; }
+  .attachment-remove {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 17px;
+    height: 17px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 5px;
+    background: rgba(4, 7, 4, 0.75);
+    color: #d8e2d1;
+    backdrop-filter: blur(5px);
+  }
+  .attachment-remove:hover { background: rgba(255, 141, 131, 0.85); color: #160b09; border-color: transparent; }
+  .attachment-remove .icon { width: 10px; height: 10px; }
+  .composer {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(238, 245, 230, 0.13);
+    border-radius: 20px;
+    background:
+      linear-gradient(160deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+      rgba(14, 19, 15, 0.9);
+    box-shadow:
+      0 22px 55px rgba(0, 0, 0, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+  }
+  .composer:focus-within {
+    border-color: rgba(205, 246, 148, 0.27);
+    box-shadow:
+      0 22px 55px rgba(0, 0, 0, 0.34),
+      0 0 0 3px rgba(205, 246, 148, 0.055),
+      inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  }
+  .composer.drag-over { border-color: rgba(205, 246, 148, 0.46); background: rgba(25, 36, 20, 0.9); }
+  .composer-row { display: flex; align-items: flex-end; gap: 9px; padding: 11px 12px 0 13px; }
+  .attach-btn {
+    width: 36px;
+    height: 36px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    margin-bottom: 3px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.035);
+    color: #85917d;
+    transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+  }
+  .attach-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.075); border-color: var(--line); }
+  .attach-btn .icon { width: 17px; height: 17px; }
+  #messageInput {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 37px;
+    max-height: 150px;
+    margin: 0;
+    padding: 7px 1px 5px;
+    overflow-y: auto;
+    resize: none;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: 13.5px;
+    line-height: 1.7;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+  #messageInput::placeholder { color: #667262; }
+  .composer-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 11px 10px 15px; }
+  .composer-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; min-width: 0; color: #657061; font-size: 8.5px; line-height: 1.5; }
+  .composer-hint kbd {
+    padding: 1px 4px;
+    border: 1px solid rgba(238, 245, 230, 0.1);
+    border-bottom-color: rgba(238, 245, 230, 0.16);
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.035);
+    color: #8c9983;
+    font-family: var(--font);
+    font-size: 8px;
+    line-height: 1.5;
+  }
+  .composer-hint .hint-divider { width: 1px; height: 9px; background: var(--line); margin: 0 2px; }
+  .send-btn {
+    min-width: 76px;
+    height: 32px;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9px;
+    background: linear-gradient(135deg, #d8ffa7, #b6e978);
+    color: var(--accent-ink);
+    font-size: 10.5px;
+    font-weight: 660;
+    letter-spacing: 0.02em;
+    box-shadow: 0 8px 22px rgba(171, 224, 107, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.56);
+    transition: transform 150ms ease, filter 150ms ease, opacity 150ms ease, background 150ms ease;
+  }
+  .send-btn:hover:not(:disabled) { filter: brightness(1.045); transform: translateY(-1px); }
+  .send-btn:active:not(:disabled) { transform: translateY(0); }
+  .send-btn:disabled { opacity: 0.35; box-shadow: none; }
+  .send-btn .icon { width: 14px; height: 14px; }
+  .send-btn.is-stop {
+    border-color: rgba(255, 141, 131, 0.22);
+    background: rgba(255, 141, 131, 0.09);
+    color: #e5aea7;
+    box-shadow: none;
+  }
+  .send-btn.is-stop:hover { background: rgba(255, 141, 131, 0.14); filter: none; }
+  .legal {
+    margin: 8px 0 0;
+    color: #566152;
+    font-size: 8px;
+    line-height: 1.5;
+    text-align: center;
+    letter-spacing: 0.01em;
+  }
+
+  /* -------------------- Dialogs, toast, lightbox -------------------- */
+  dialog {
+    color: var(--text);
+    border: 1px solid var(--line-strong);
+    border-radius: 20px;
+    background:
+      linear-gradient(155deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012)),
+      #121913;
+    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+  dialog::backdrop { background: rgba(3, 6, 4, 0.72); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); }
+  .clear-dialog { width: min(412px, calc(100vw - 32px)); padding: 0; }
+  .dialog-body { padding: 23px 23px 20px; }
+  .dialog-icon {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 15px;
+    border: 1px solid rgba(255, 141, 131, 0.18);
+    border-radius: 11px;
+    background: rgba(255, 141, 131, 0.07);
+    color: #e9a79f;
+  }
+  .dialog-icon .icon { width: 17px; height: 17px; }
+  .dialog-kicker {
+    margin: 0 0 7px;
+    color: #798673;
+    font-size: 8.5px;
+    font-weight: 560;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .dialog-title { margin: 0 0 9px; font-size: 18px; font-weight: 590; letter-spacing: -0.025em; }
+  .dialog-text { margin: 0; color: #8d9a85; font-size: 12px; line-height: 1.8; }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+  .btn {
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.035);
+    color: #aab6a1;
+    font-size: 10.5px;
+    transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  }
+  .btn:hover { background: rgba(255, 255, 255, 0.07); border-color: var(--line-strong); color: var(--text); }
+  .btn-danger { border-color: rgba(255, 141, 131, 0.21); background: rgba(255, 141, 131, 0.13); color: #ffc3bc; }
+  .btn-danger:hover { border-color: rgba(255, 141, 131, 0.32); background: rgba(255, 141, 131, 0.2); color: #ffe2de; }
+
+  .image-dialog {
+    width: min(980px, calc(100vw - 28px));
+    max-width: none;
+    padding: 9px;
+    border-color: rgba(238, 245, 230, 0.16);
+    background: #0d120e;
+  }
+  .image-dialog img {
+    display: block;
+    max-width: 100%;
+    max-height: 79dvh;
+    margin: 0 auto;
+    border-radius: 11px;
+    object-fit: contain;
+  }
+  .image-dialog-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.17);
+    border-radius: 8px;
+    background: rgba(5, 8, 5, 0.7);
+    color: #eef4e9;
+    backdrop-filter: blur(6px);
+  }
+  .image-dialog-close:hover { background: rgba(255, 255, 255, 0.14); }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 132px;
+    z-index: 100;
+    max-width: min(90vw, 520px);
+    padding: 9px 14px 9px 11px;
+    border: 1px solid rgba(238, 245, 230, 0.14);
+    border-radius: 10px;
+    background: rgba(24, 33, 24, 0.96);
+    box-shadow: 0 16px 45px rgba(0, 0, 0, 0.35);
+    color: #c2cdb9;
+    font-size: 10.5px;
+    line-height: 1.5;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translate(-50%, 8px);
+    transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
+    backdrop-filter: blur(12px);
+  }
+  .toast::before {
+    content: "";
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    vertical-align: 1px;
+  }
+  .toast.show { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+  .toast.error { border-color: rgba(255, 141, 131, 0.24); color: #e4bdb6; }
+  .toast.error::before { background: var(--danger); }
+  .toast.info::before { background: var(--teal); }
+
+  /* -------------------- Motion -------------------- */
+  @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes message-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes pop-in { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
+  @keyframes orbit-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  @keyframes float-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  @keyframes spin-slow { to { transform: rotate(360deg); } }
+  @keyframes dot-wave { 0%, 60%, 100% { transform: translateY(0); opacity: 0.45; } 30% { transform: translateY(-3px); opacity: 1; } }
+
+  /* -------------------- Responsive -------------------- */
+  @media (max-width: 1180px) {
+    :root { --sidebar-width: 324px; }
+    .sidebar { padding-left: 21px; padding-right: 21px; }
+    .side-intro h1 { font-size: 31px; }
+    .topbar, .composer-bar { padding-left: 26px; padding-right: 26px; }
+    .topbar::after { left: 26px; right: 26px; }
+    .conversation-inner { padding-left: 30px; padding-right: 30px; }
+    .orbit { width: 250px; height: 250px; }
+    .orbit-wrap { min-height: 274px; }
+    .orbit-attr.a2 { right: -4px; }
+  }
+
+  @media (max-width: 1060px) {
+    .app { display: block; }
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 40;
+      width: min(360px, 91vw);
+      transform: translateX(-102%);
+      transition: transform 280ms cubic-bezier(.2, .7, .2, 1);
+      box-shadow: 30px 0 90px rgba(0, 0, 0, 0.48);
+    }
+    .app.is-drawer-open .sidebar { transform: translateX(0); }
+    .app.is-drawer-open .drawer-scrim { opacity: 1; visibility: visible; }
+    .sidebar .sidebar-close { display: grid; }
+    .main { height: 100dvh; }
+    .topbar .mobile-settings { display: grid; }
+    .topbar { padding: 15px 24px; min-height: 74px; }
+    .topbar::after { left: 24px; right: 24px; }
+    .composer-bar { padding-left: 24px; padding-right: 24px; }
+    .conversation-inner { padding-left: 30px; padding-right: 30px; }
+    .orbit-wrap { min-height: 250px; }
+    .orbit { width: 238px; height: 238px; }
+    .orbit-core { width: 132px; height: 132px; }
+    .orbit-core strong { font-size: 36px; }
+    .orbit-attr.a1 { left: 0; }
+    .orbit-attr.a3 { left: 0; }
+  }
+
+  @media (max-width: 840px) {
+    .hero-grid { grid-template-columns: minmax(0, 1fr) 230px; gap: 8px; }
+    .hero-copy h1 { font-size: clamp(35px, 6vw, 46px); }
+    .orbit { width: 218px; height: 218px; }
+    .orbit-wrap { min-height: 234px; }
+    .orbit-core { width: 121px; height: 121px; }
+    .orbit-core strong { font-size: 33px; }
+    .orbit-attr { font-size: 8.5px; padding: 5px 8px; }
+    .orbit-attr.a1 { top: 26px; }
+    .orbit-attr.a2 { top: 67px; right: -8px; }
+    .orbit-attr.a3 { bottom: 50px; }
+    .orbit-attr.a4 { bottom: 18px; right: -2px; }
+    .product-card { grid-template-columns: 48px minmax(0, 1fr) auto; gap: 9px; }
+    .product-visual { width: 48px; height: 48px; font-size: 10px; }
+    .product-price { font-size: 11px; }
+  }
+
+  @media (max-width: 720px) {
+    .topbar { min-height: 68px; padding: 12px 16px; gap: 10px; }
+    .topbar::after { left: 16px; right: 16px; }
+    .topbar-left { gap: 9px; }
+    .topbar-eyebrow { display: none; }
+    .topbar h2 { font-size: 14px; }
+    .topbar h2 .live-dot { width: 4px; height: 4px; }
+    .mobile-settings { width: 32px; height: 32px; border-radius: 9px; }
+    .save-state { display: none; }
+    .clear-btn { width: 32px; height: 32px; padding: 0; border-radius: 9px; }
+    .clear-btn span { display: none; }
+    .topbar-actions { gap: 7px; }
+    .conversation-inner { padding: 12px 16px 8px; }
+    .welcome { justify-content: flex-start; padding: 24px 0 20px; }
+    .hero-grid { grid-template-columns: minmax(0, 1fr); }
+    .hero-copy h1 { font-size: clamp(37px, 10.2vw, 48px); margin: 14px 0 13px; }
+    .hero-copy > p { font-size: 12px; line-height: 1.85; }
+    .orbit-wrap { display: none; }
+    .suggestions { grid-template-columns: 1fr; gap: 7px; margin-top: 22px; }
+    .suggestion { min-height: 0; padding: 12px 13px; }
+    .suggestion-top { margin-bottom: 10px; }
+    .suggestion .s-tag { display: none; }
+    .s-arrow { opacity: 1; transform: none; color: #7c8f72; }
+    .hero-meta { margin-top: 18px; gap: 8px 12px; }
+    .hero-meta .meta-mono { display: none; }
+    .hero-meta .meta-separator { display: none; }
+    .messages { gap: 22px; padding-top: 7px; }
+    .message { gap: 8px; }
+    .avatar { width: 29px; height: 29px; border-radius: 9px; font-size: 9px; }
+    .assistant .avatar .icon { width: 15px; height: 15px; }
+    .message-body { max-width: calc(100% - 37px); }
+    .message-meta { gap: 6px; margin-bottom: 5px; }
+    .msg-author { font-size: 10px; }
+    .msg-time { font-size: 9px; }
+    .msg-source { font-size: 7.5px; }
+    .bubble { padding: 12px 13px; border-radius: 14px; font-size: 13.5px; line-height: 1.85; }
+    .message.user .message-body { max-width: 88%; }
+    .message-images { width: 100%; }
+    .product-card { grid-template-columns: 45px minmax(0, 1fr); padding: 10px; }
+    .product-visual { width: 45px; height: 45px; font-size: 10px; border-radius: 8px; }
+    .product-price { grid-column: 2; margin-top: -1px; text-align: left; font-size: 11px; }
+    .product-name { font-size: 11.5px; }
+    .product-brand { font-size: 9px; }
+    .product-match { font-size: 8.5px; }
+    .product-reason { font-size: 9px; }
+    .product-tags { gap: 3px; }
+    .product-tag { font-size: 8px; }
+    .message-guidance { font-size: 12px; }
+    .composer-bar { padding: 5px 12px max(9px, env(safe-area-inset-bottom)); }
+    .composer-inner { padding: 0; }
+    .attachment-strip { padding: 0 2px 7px; }
+    .attachment { width: 50px; height: 50px; }
+    .composer { border-radius: 17px; }
+    .composer-row { padding: 8px 9px 0 10px; gap: 7px; }
+    .attach-btn { width: 32px; height: 32px; margin-bottom: 4px; }
+    .composer-tools { padding: 4px 8px 8px 11px; gap: 5px; }
+    .composer-hint { font-size: 7.5px; gap: 4px; }
+    .composer-hint .hint-shift, .composer-hint .hint-divider { display: none; }
+    #messageInput { font-size: 14px; min-height: 35px; padding-top: 8px; }
+    .send-btn { min-width: 58px; height: 31px; font-size: 9.5px; gap: 4px; padding: 0 9px; border-radius: 8px; }
+    .send-btn .icon { width: 12px; height: 12px; }
+    .legal { margin-top: 6px; font-size: 7px; color: #4f5a4c; }
+    .product-heading { font-size: 7.5px; }
+    .toast { bottom: 108px; font-size: 10px; }
+    .typing-row { padding-bottom: 8px; }
+    .typing-bubble { font-size: 9px; padding: 9px 12px; }
+    .orbit-attr { display: none; }
+    .date-divider { font-size: 7.5px; }
+  }
+
+  @media (max-height: 820px) and (min-width: 721px) {
+    .sidebar { gap: 16px; padding-top: 20px; padding-bottom: 15px; }
+    .side-intro h1 { margin: 10px 0 8px; font-size: 29px; }
+    .side-intro p { font-size: 11.5px; line-height: 1.7; }
+    .settings-card { padding: 14px; }
+    .field { margin-top: 11px; }
+    .privacy-card { padding: 10px 11px; }
+    .welcome { padding-top: 8px; padding-bottom: 15px; }
+    .hero-copy h1 { font-size: clamp(36px, 4vw, 47px); }
+    .suggestions { margin-top: 20px; }
+    .hero-meta { margin-top: 18px; padding-top: 12px; }
+    .topbar { min-height: 70px; padding-top: 12px; padding-bottom: 12px; }
+    .orbit { width: 235px; height: 235px; }
+  }
+
+  @media (max-width: 720px) and (min-height: 780px) {
+    .welcome { justify-content: center; padding-top: 8px; }
+  }
+
+  @media (max-width: 720px) and (max-height: 780px) {
+    .welcome { padding: 14px 0 10px; }
+    .hero-copy h1 { margin: 10px 0; font-size: clamp(32px, 9.2vw, 40px); }
+    .hero-copy > p { font-size: 12px; line-height: 1.8; }
+    .suggestions { margin-top: 16px; gap: 6px; }
+    .suggestion { padding: 10px 12px; }
+    .suggestion-top { margin-bottom: 8px; }
+    .hero-meta { margin-top: 14px; padding-top: 10px; gap: 6px 10px; font-size: 8.5px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+<svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <symbol id="i-paw" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M12 12.6c-3 0-5.4 2.4-5.4 4.9 0 1.7 1.2 2.7 3 2.7 1.1 0 1.7-.5 2.4-.5.7 0 1.3.5 2.4.5 1.8 0 3-1 3-2.7 0-2.5-2.4-4.9-5.4-4.9Z"/>
+    <ellipse fill="currentColor" cx="6.1" cy="10.3" rx="1.8" ry="2.35" transform="rotate(-20 6.1 10.3)"/>
+    <ellipse fill="currentColor" cx="9.1" cy="6.6" rx="1.85" ry="2.45" transform="rotate(-8 9.1 6.6)"/>
+    <ellipse fill="currentColor" cx="14.9" cy="6.6" rx="1.85" ry="2.45" transform="rotate(8 14.9 6.6)"/>
+    <ellipse fill="currentColor" cx="17.9" cy="10.3" rx="1.8" ry="2.35" transform="rotate(20 17.9 10.3)"/>
+  </symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M12 3.2c.48 4.63 2.97 7.12 7.6 7.6-4.63.48-7.12 2.97-7.6 7.6-.48-4.63-2.97-7.12-7.6-7.6 4.63-.48 7.12-2.97 7.6-7.6Z"/>
+    <circle fill="currentColor" cx="19" cy="17.3" r="1.25" opacity=".55"/>
+  </symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24">
+    <path d="M4 7h10M18 7h2M4 17h2M10 17h10M4 12h4M12 12h8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <circle cx="16" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <circle cx="8" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <circle cx="10" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+  </symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24">
+    <path d="M2.8 12s3.4-5.6 9.2-5.6S21.2 12 21.2 12s-3.4 5.6-9.2 5.6S2.8 12 2.8 12Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="12" cy="12" r="2.35" fill="none" stroke="currentColor" stroke-width="1.7"/>
+  </symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24">
+    <path d="M3.5 3.5l17 17M10.4 6.6A9.9 9.9 0 0 1 12 6.4c5.8 0 9.2 5.6 9.2 5.6a17 17 0 0 1-3.2 3.8M6.4 8.1A16.5 16.5 0 0 0 2.8 12s3.4 5.6 9.2 5.6c1.3 0 2.5-.3 3.5-.7M10.1 10.2a2.7 2.7 0 0 0 3.8 3.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24">
+    <path d="m7 9.5 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24">
+    <path d="M5 12h13M13 7l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-image" viewBox="0 0 24 24">
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <circle cx="8.7" cy="9.3" r="1.45" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <path d="m4.8 17 4.2-4.1 3.1 2.9 2.4-2.2 4.7 4.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-send" viewBox="0 0 24 24">
+    <path d="M12 19V5m0 0L6.3 10.7M12 5l5.7 5.7" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24">
+    <rect x="7.2" y="7.2" width="9.6" height="9.6" rx="1.6" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24">
+    <path d="M4.5 7.5h15M9 7.5V5.4c0-.8.6-1.4 1.4-1.4h3.2c.8 0 1.4.6 1.4 1.4v2.1M7 7.5l.8 11c.1 1 .8 1.6 1.8 1.6h4.8c1 0 1.7-.6 1.8-1.6l.8-11M10 11v5M14 11v5" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24">
+    <rect x="5.2" y="10.2" width="13.6" height="10.3" rx="2.3" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M8.2 10.2V7.7a3.8 3.8 0 0 1 7.6 0v2.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <circle cx="12" cy="15" r="1.2" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-close" viewBox="0 0 24 24">
+    <path d="m6.5 6.5 11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24">
+    <path d="M12 3.7 21 20H3L12 3.7Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M12 9v4.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <circle cx="12" cy="16.7" r="1" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 24 24">
+    <path d="m5 12.5 4.2 4.2L19 6.8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+<div class="app" id="app">
+  <aside class="sidebar" id="settingsSidebar" aria-label="连接与模型设置">
+    <div class="sidebar-head">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><svg class="icon"><use href="#i-paw"></use></svg></div>
+        <div class="brand-copy">
+          <span class="brand-name">Paw<span>Match</span></span>
+          <span class="brand-sub">宠配实验室 · AI Pet Concierge</span>
+        </div>
+      </div>
+      <button class="icon-btn sidebar-close" id="closeSettingsBtn" type="button" aria-label="关闭设置面板">
+        <svg class="icon" aria-hidden="true"><use href="#i-close"></use></svg>
+      </button>
+    </div>
+
+    <div class="side-intro">
+      <div class="side-kicker">Attribute Similarity · 01</div>
+      <h1>把合适的，<br>留给<em>对的它</em>。</h1>
+      <p>基于商品属性相似度的宠物选品助手。从成分、阶段、场景到预算，把每一份需求拆解成更贴近的答案。</p>
+    </div>
+
+    <section class="settings-card" aria-labelledby="settingsTitle">
+      <div class="section-top">
+        <span class="section-title" id="settingsTitle">连接设置</span>
+        <span class="status-badge" id="connectionBadge"><i></i><span id="connectionLabel">本地体验</span></span>
+      </div>
+
+      <label class="field">
+        <span class="field-label">
+          <span>API Key</span>
+          <span class="field-note">仅保存在本机</span>
+        </span>
+        <span class="input-wrap">
+          <svg class="icon lead-icon" aria-hidden="true"><use href="#i-lock"></use></svg>
+          <input id="apiKeyInput" type="password" placeholder="输入 API Key（sk-...）" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="API Key">
+          <button class="inline-btn" id="toggleKeyBtn" type="button" aria-label="显示 API Key" title="显示 / 隐藏">
+            <svg class="icon" aria-hidden="true"><use href="#i-eye"></use></svg>
+          </button>
+        </span>
+      </label>
+      <p class="field-hint">不填也能体验本地选品引擎；默认使用 DeepSeek 接口。</p>
+
+      <label class="field">
+        <span class="field-label"><span>对话模型</span><span class="field-note" id="modeFieldNote">本地可用</span></span>
+        <span class="select-wrap">
+          <select id="modelModeSelect" aria-label="选择对话模型">
+            <option value="quick">快速模式 · 即时应答</option>
+            <option value="expert">专家模式 · 深度分析</option>
+          </select>
+          <svg class="icon select-chevron" aria-hidden="true"><use href="#i-chevron"></use></svg>
+        </span>
+      </label>
+      <p class="mode-copy" id="modeDescription">即时应答，适合日常挑选、比价与轻量咨询。</p>
+
+      <details class="advanced" id="advancedPanel">
+        <summary>
+          <span>高级连接设置</span>
+          <svg class="icon" aria-hidden="true"><use href="#i-chevron"></use></svg>
+        </summary>
+        <div class="advanced-body">
+          <label class="field">
+            <span class="field-label">API 接口地址</span>
+            <span class="input-wrap">
+              <input id="endpointInput" type="url" placeholder="https://api.deepseek.com/chat/completions" spellcheck="false" aria-label="API 接口地址">
+            </span>
+          </label>
+          <div class="field-grid">
+            <label class="field">
+              <span class="field-label">快速模型 ID</span>
+              <span class="input-wrap">
+                <input id="quickModelInput" type="text" placeholder="deepseek-chat" spellcheck="false" aria-label="快速模型 ID">
+              </span>
+            </label>
+            <label class="field">
+              <span class="field-label">专家模型 ID</span>
+              <span class="input-wrap">
+                <input id="expertModelInput" type="text" placeholder="deepseek-reasoner" spellcheck="false" aria-label="专家模型 ID">
+              </span>
+            </label>
+          </div>
+          <div class="advanced-foot">
+            <span class="advanced-note">兼容 OpenAI Chat Completions 协议</span>
+            <button class="text-btn" id="resetApiBtn" type="button">恢复默认</button>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <div class="privacy-card">
+      <svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg>
+      <span><strong>只属于你的对话</strong>聊天记录、图片与密钥保存在当前浏览器的 localStorage；发送消息时，对话内容会提交给你配置的 API。</span>
+    </div>
+
+    <div class="sidebar-footer">
+      <span>Local-first · v1.0</span>
+      <span id="catalogCount">21 款商品库</span>
+    </div>
+  </aside>
+
+  <div class="drawer-scrim" id="drawerScrim" aria-hidden="true"></div>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="icon-btn mobile-settings" id="openSettingsBtn" type="button" aria-label="打开连接设置" aria-controls="settingsSidebar" aria-expanded="false">
+          <svg class="icon" aria-hidden="true"><use href="#i-sliders"></use></svg>
+        </button>
+        <div class="topbar-copy">
+          <p class="topbar-eyebrow">PawMatch / AI Pet Concierge</p>
+          <h2>宠物好物咨询台 <span class="live-dot" aria-hidden="true"></span></h2>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span class="save-state" id="saveState" aria-live="polite"><span id="saveStateLabel">本地自动保存</span></span>
+        <button class="clear-btn" id="clearBtn" type="button" title="清空全部对话记录">
+          <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>
+          <span>清空记录</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="conversation" id="conversation" aria-label="对话内容">
+      <div class="conversation-inner">
+        <section class="welcome" id="welcome">
+          <div class="hero-grid">
+            <div class="hero-copy">
+              <div class="eyebrow"><svg class="icon" aria-hidden="true"><use href="#i-spark"></use></svg>Based on Product Attributes</div>
+              <h1>挑对，<br><em>比买贵更重要。</em></h1>
+              <p>我是 <strong>PawMatch</strong>。告诉我毛孩子的品种、年龄、预算，或是正在纠结的选择，我会用<strong>商品属性相似度</strong>帮你缩小范围。</p>
+            </div>
+            <div class="orbit-wrap" aria-hidden="true">
+              <div class="orbit">
+                <div class="orbit-ring outer"></div>
+                <div class="orbit-ring middle"></div>
+                <span class="orbit-attr a1"><i></i>低敏蛋白</span>
+                <span class="orbit-attr a2"><i></i>无谷配方</span>
+                <span class="orbit-attr a3"><i></i>预算匹配</span>
+                <span class="orbit-attr a4"><i></i>阶段适用</span>
+                <div class="orbit-core">
+                  <span class="orbit-kicker">TOP MATCH</span>
+                  <strong>96<small>%</small></strong>
+                  <span class="orbit-caption">属性契合度</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="suggestions" aria-label="快捷提问">
+            <button class="suggestion" type="button" data-prompt="预算 200 元内，给英短挑一款低敏猫粮">
+              <span class="suggestion-top"><span class="s-index">01 / 主粮</span><svg class="icon s-arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg></span>
+              <strong>低敏口粮怎么挑</strong>
+              <span class="s-sub">英短 · 预算 200 元内</span>
+              <span class="s-tag">玻璃胃友好</span>
+            </button>
+            <button class="suggestion" type="button" data-prompt="6kg 以内的幼犬，适合哪种磨牙玩具？">
+              <span class="suggestion-top"><span class="s-index">02 / 玩具</span><svg class="icon s-arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg></span>
+              <strong>幼犬磨牙玩具</strong>
+              <span class="s-sub">小型犬 · 耐咬与安全</span>
+              <span class="s-tag">成长阶段匹配</span>
+            </button>
+            <button class="suggestion" type="button" data-prompt="豆腐猫砂和矿砂，哪个更适合多猫家庭？">
+              <span class="suggestion-top"><span class="s-index">03 / 猫砂</span><svg class="icon s-arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg></span>
+              <strong>多猫家庭猫砂</strong>
+              <span class="s-sub">豆腐砂 vs 膨润土</span>
+              <span class="s-tag">除臭 · 粉尘 · 结团</span>
+            </button>
+          </div>
+
+          <div class="hero-meta">
+            <span class="engine-state" id="engineState"><i></i><span id="engineStateLabel">本地相似度引擎就绪</span></span>
+            <span class="meta-separator" aria-hidden="true"></span>
+            <span id="heroCatalogMeta">21 款精选单品</span>
+            <span class="meta-separator" aria-hidden="true"></span>
+            <span>5 维属性匹配</span>
+            <span class="meta-separator" aria-hidden="true"></span>
+            <span class="meta-mono">SIMILARITY ENGINE V1.0</span>
+          </div>
+        </section>
+
+        <div class="messages" id="messages" role="log" aria-live="polite" aria-relevant="additions"></div>
+
+        <div class="typing-row" id="typingRow" hidden>
+          <div class="avatar assistant" aria-hidden="true"><svg class="icon"><use href="#i-paw"></use></svg></div>
+          <div class="typing-bubble">
+            <span class="typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span id="typingLabel">正在匹配属性与商品库…</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="composer-bar">
+      <div class="composer-inner">
+        <div class="attachment-strip" id="attachmentStrip" aria-label="待发送图片"></div>
+        <div class="composer" id="composer">
+          <div class="composer-row">
+            <button class="attach-btn" id="attachBtn" type="button" aria-label="上传图片" title="上传图片（转为 Base64）">
+              <svg class="icon" aria-hidden="true"><use href="#i-image"></use></svg>
+            </button>
+            <textarea id="messageInput" rows="1" placeholder="说说毛孩子的品种、年龄，或你想比较的商品…" aria-label="消息输入框"></textarea>
+          </div>
+          <div class="composer-tools">
+            <div class="composer-hint">
+              <span><kbd>Enter</kbd> 发送</span>
+              <span class="hint-divider"></span>
+              <span class="hint-shift"><kbd>Shift</kbd> + <kbd>Enter</kbd> 换行</span>
+              <span class="hint-divider"></span>
+              <span>图片转为 Base64 保存</span>
+            </div>
+            <button class="send-btn" id="sendBtn" type="button" disabled>
+              <svg class="icon" aria-hidden="true"><use href="#i-send"></use></svg>
+              <span id="sendBtnLabel">发送</span>
+            </button>
+          </div>
+        </div>
+        <p class="legal">PawMatch 基于商品属性提供选品参考，不构成医疗建议。关键商品信息请以实际页面为准。</p>
+      </div>
+    </footer>
+  </main>
+
+  <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+</div>
+
+<dialog class="clear-dialog" id="clearDialog" aria-labelledby="clearDialogTitle">
+  <div class="dialog-body">
+    <div class="dialog-icon"><svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg></div>
+    <p class="dialog-kicker">Clear conversation</p>
+    <h2 class="dialog-title" id="clearDialogTitle">清空全部对话？</h2>
+    <p class="dialog-text">这将删除当前浏览器中保存的所有消息和图片，且无法恢复。你的 API 与模型设置会保留。</p>
+    <div class="dialog-actions">
+      <button class="btn" id="cancelClearBtn" type="button">先留着</button>
+      <button class="btn btn-danger" id="confirmClearBtn" type="button">确认清空</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="image-dialog" id="imageDialog" aria-label="查看图片">
+  <button class="image-dialog-close" id="closeImageBtn" type="button" aria-label="关闭大图">
+    <svg class="icon" aria-hidden="true"><use href="#i-close"></use></svg>
+  </button>
+  <img id="lightboxImage" src="" alt="用户上传的图片">
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ============================== Constants ============================== */
+  const STORAGE_KEYS = {
+    messages: "pawmatch.chat.v1",
+    settings: "pawmatch.settings.v1"
+  };
+
+  const DEFAULTS = {
+    apiKey: "",
+    mode: "quick",
+    endpoint: "https://api.deepseek.com/chat/completions",
+    quickModel: "deepseek-chat",
+    expertModel: "deepseek-reasoner"
+  };
+
+  const CATEGORY_META = {
+    "主粮": { tone: "food", icon: "i-paw" },
+    "猫砂": { tone: "litter", icon: "i-spark" },
+    "玩具": { tone: "toy", icon: "i-send" },
+    "保健": { tone: "health", icon: "i-spark" },
+    "用品": { tone: "supply", icon: "i-lock" }
+  };
+
+  const CATALOG = [
+    {
+      id: "freshlow-cat-chicken",
+      brand: "鲜朗",
+      name: "低敏鸡肉冻干双拼猫粮",
+      category: "主粮",
+      species: ["猫"],
+      ages: ["幼猫", "成猫", "全阶段"],
+      price: 159,
+      unit: "1.5kg",
+      tags: ["低敏", "单一肉源", "无谷", "冻干", "高蛋白", "全阶段", "鸡肉"],
+      desc: "单一鸡肉源搭配无谷配方，冻干双拼提升适口性，适合敏感体质的猫。",
+      popularity: 94
+    },
+    {
+      id: "yanxuan-freezedry-cat",
+      brand: "网易严选",
+      name: "全价冻干双拼猫粮",
+      category: "主粮",
+      species: ["猫"],
+      ages: ["幼猫", "成猫", "全阶段"],
+      price: 89,
+      unit: "1.8kg",
+      tags: ["冻干", "无谷", "高蛋白", "全阶段", "平价"],
+      desc: "鸡肉与牛肉双拼冻干，营养均衡，是日常口粮的性价比之选。",
+      popularity: 87
+    },
+    {
+      id: "orijen-sixfish-cat",
+      brand: "渴望",
+      name: "六种鱼全价猫粮",
+      category: "主粮",
+      species: ["猫"],
+      ages: ["成猫", "全阶段"],
+      price: 238,
+      unit: "1.8kg",
+      tags: ["无谷", "高蛋白", "美毛", "鱼", "成猫"],
+      desc: "六种海洋鱼配方，高蛋白无谷，重点关注毛发状态与肌肉线条。",
+      popularity: 83
+    },
+    {
+      id: "royal-kitten-cat",
+      brand: "皇家",
+      name: "幼猫奶糕全价粮",
+      category: "主粮",
+      species: ["猫"],
+      ages: ["幼猫"],
+      price: 158,
+      unit: "2kg",
+      tags: ["幼猫", "高蛋白", "肠胃", "鸡肉"],
+      desc: "颗粒小巧易入口，针对幼猫能量与消化需求设计。",
+      popularity: 89
+    },
+    {
+      id: "weishi-cat-food",
+      brand: "卫仕",
+      name: "膳食平衡全价猫粮",
+      category: "主粮",
+      species: ["猫"],
+      ages: ["成猫", "全阶段"],
+      price: 119,
+      unit: "2kg",
+      tags: ["平价", "全阶段", "肠胃"],
+      desc: "基础营养均衡，适合预算有限的多猫家庭作为日常口粮。",
+      popularity: 76
+    },
+    {
+      id: "bile-duck-dog",
+      brand: "比乐",
+      name: "原味鲜鸭肉犬粮",
+      category: "主粮",
+      species: ["犬"],
+      ages: ["成犬"],
+      price: 269,
+      unit: "10kg",
+      tags: ["低敏", "单一肉源", "鸭肉", "成犬", "大容量"],
+      desc: "单一鸭肉源搭配大包装，适合皮肤敏感或容易上火的犬只。",
+      popularity: 85
+    },
+    {
+      id: "acana-seafood-dog",
+      brand: "爱肯拿",
+      name: "海洋盛宴全价犬粮",
+      category: "主粮",
+      species: ["犬"],
+      ages: ["幼犬", "成犬", "全阶段"],
+      price: 199,
+      unit: "2kg",
+      tags: ["无谷", "高蛋白", "美毛", "鱼", "全阶段"],
+      desc: "高比例海洋鱼蛋白，无谷配方，兼顾亮毛与均衡营养。",
+      popularity: 88
+    },
+    {
+      id: "royal-puppy-dog",
+      brand: "皇家",
+      name: "幼犬奶糕全价粮",
+      category: "主粮",
+      species: ["犬"],
+      ages: ["幼犬"],
+      price: 148,
+      unit: "2kg",
+      tags: ["幼犬", "高蛋白", "肠胃", "鸡肉"],
+      desc: "针对离乳期幼犬设计，小颗粒易咀嚼，帮助平稳换粮。",
+      popularity: 87
+    },
+    {
+      id: "weishi-dog-food",
+      brand: "卫仕",
+      name: "膳食平衡全价犬粮",
+      category: "主粮",
+      species: ["犬"],
+      ages: ["成犬"],
+      price: 109,
+      unit: "3.5kg",
+      tags: ["平价", "成犬", "肠胃"],
+      desc: "日常基础营养，价格友好，适合体质稳定的成犬。",
+      popularity: 74
+    },
+    {
+      id: "tail-litter",
+      brand: "尾巴生活",
+      name: "豆腐混合猫砂",
+      category: "猫砂",
+      species: ["猫"],
+      ages: ["全阶段"],
+      price: 39.9,
+      unit: "6L",
+      tags: ["除臭", "无尘", "结团", "可冲", "多猫", "豆腐砂"],
+      desc: "豆腐砂混合少量膨润土，结团快、粉尘低，可少量分次冲厕。",
+      popularity: 92
+    },
+    {
+      id: "n1-tofu-litter",
+      brand: "N1",
+      name: "天然玉米豆腐猫砂",
+      category: "猫砂",
+      species: ["猫"],
+      ages: ["全阶段"],
+      price: 89,
+      unit: "17.5L",
+      tags: ["除臭", "无尘", "结团", "可冲", "多猫", "大容量", "豆腐砂"],
+      desc: "大容量桶装，低粉尘与结团表现均衡，适合多猫家庭长期囤货。",
+      popularity: 88
+    },
+    {
+      id: "everclean-bentonite",
+      brand: "铂钻",
+      name: "强结团膨润土猫砂",
+      category: "猫砂",
+      species: ["猫"],
+      ages: ["全阶段"],
+      price: 59,
+      unit: "10L",
+      tags: ["除臭", "结团", "多猫", "膨润土"],
+      desc: "矿物砂结团紧实、除臭强，铲屎省力，但重量与粉尘略高。",
+      popularity: 84
+    },
+    {
+      id: "petkit-fountain",
+      brand: "小佩",
+      name: "智能静音饮水机",
+      category: "用品",
+      species: ["猫", "犬"],
+      ages: ["全阶段"],
+      price: 199,
+      unit: "1.8L",
+      tags: ["静音", "犬猫通用", "可水洗", "过滤"],
+      desc: "循环过滤与静音水泵，拆洗方便，鼓励宠物日常多喝水。",
+      popularity: 82
+    },
+    {
+      id: "yanxuan-cat-bed",
+      brand: "网易严选",
+      name: "四季可拆洗猫窝",
+      category: "用品",
+      species: ["猫"],
+      ages: ["全阶段"],
+      price: 79,
+      unit: "M 号",
+      tags: ["可水洗", "猫用", "保暖"],
+      desc: "四季通用，外套可拆洗，给猫一个稳定又干净的休息角落。",
+      popularity: 79
+    },
+    {
+      id: "guigai-puppy-toy",
+      brand: "贵为",
+      name: "幼犬磨牙发声玩具",
+      category: "玩具",
+      species: ["犬"],
+      ages: ["幼犬"],
+      price: 49,
+      unit: "小号",
+      tags: ["耐咬", "幼犬", "互动", "发声"],
+      desc: "柔软橡胶与安全发声器，尺寸适合小型幼犬的磨牙期。",
+      popularity: 91
+    },
+    {
+      id: "starmark-puzzle-toy",
+      brand: "星记",
+      name: "漏食益智玩具",
+      category: "玩具",
+      species: ["犬"],
+      ages: ["成犬"],
+      price: 79,
+      unit: "M 号",
+      tags: ["耐咬", "益智", "互动", "成犬"],
+      desc: "可填零食的漏食结构，延长独处时间，帮精力旺盛的狗消耗脑力。",
+      popularity: 86
+    },
+    {
+      id: "homer-laser-cat",
+      brand: "霍曼",
+      name: "智能逗猫棒",
+      category: "玩具",
+      species: ["猫"],
+      ages: ["成猫"],
+      price: 99,
+      unit: "充电款",
+      tags: ["互动", "成猫", "充电"],
+      desc: "自动巡游光点与随机轨迹，适合上班族给猫增加日常运动量。",
+      popularity: 81
+    },
+    {
+      id: "reddog-probiotics",
+      brand: "红狗",
+      name: "宠物益生菌",
+      category: "保健",
+      species: ["猫", "犬"],
+      ages: ["全阶段"],
+      price: 88,
+      unit: "30 包",
+      tags: ["肠胃", "犬猫通用", "益生菌"],
+      desc: "帮助维持肠道菌群平衡，换粮或应激期可按说明补充。",
+      popularity: 85
+    },
+    {
+      id: "medise-lecithin",
+      brand: "麦德氏",
+      name: "卵磷脂美毛颗粒",
+      category: "保健",
+      species: ["犬"],
+      ages: ["成犬"],
+      price: 99,
+      unit: "450g",
+      tags: ["美毛", "成犬", "犬用"],
+      desc: "日常补充毛发营养，适合掉毛明显或毛量不足的成犬。",
+      popularity: 80
+    },
+    {
+      id: "xiaoke-spray",
+      brand: "小壳",
+      name: "宠物环境除臭喷雾",
+      category: "用品",
+      species: ["猫", "犬"],
+      ages: ["全阶段"],
+      price: 39.9,
+      unit: "500ml",
+      tags: ["除臭", "犬猫通用", "清洁"],
+      desc: "可用于猫砂盆周边与宠物生活区，帮助减轻环境异味。",
+      popularity: 82
+    },
+    {
+      id: "qiaobeili-scratcher",
+      brand: "俏贝丽",
+      name: "瓦楞纸猫抓板",
+      category: "玩具",
+      species: ["猫"],
+      ages: ["成猫", "全阶段"],
+      price: 29.9,
+      unit: "可换芯",
+      tags: ["猫用", "互动", "可换芯"],
+      desc: "高密度瓦楞纸耐抓，替换芯设计减少浪费，也能保护家具。",
+      popularity: 77
+    }
+  ];
+
+  const CATEGORY_RULES = [
+    { category: "主粮", re: /(猫粮|狗粮|犬粮|主粮|口粮|全价粮|干粮|湿粮|奶糕|发腮|长肉)/i },
+    { category: "零食", re: /(零食|肉干|罐头|猫条|洁齿|奖励)/i },
+    { category: "猫砂", re: /(猫砂|豆腐砂|矿砂|膨润土|松木砂|结团|铲屎|砂盆)/i },
+    { category: "玩具", re: /(玩具|逗猫|磨牙|漏食|益智|抓板|发声|咬胶|耐咬)/i },
+    { category: "保健", re: /(益生菌|保健|营养品|补钙|美毛|卵磷脂|肠胃|软便|化毛)/i },
+    { category: "用品", re: /(饮水机|猫窝|狗窝|除臭喷雾|清洁|食盆|水碗|牵引|猫爬架|窝垫)/i }
+  ];
+
+  const TAG_RULES = [
+    { tag: "低敏", re: /(低敏|敏感|过敏|玻璃胃|泪痕|单一肉源)/i },
+    { tag: "无谷", re: /(无谷|谷物|麸质)/i },
+    { tag: "高蛋白", re: /(高蛋白|长肉|发腮|增肌|蛋白质)/i },
+    { tag: "冻干", re: /(冻干|双拼|适口)/i },
+    { tag: "多猫", re: /(多猫|两只猫|三只猫|双猫|好几只猫)/i },
+    { tag: "除臭", re: /(除臭|去味|异味|防臭|太臭)/i },
+    { tag: "无尘", re: /(无尘|粉尘|灰尘|扬尘|呼吸道)/i },
+    { tag: "结团", re: /(结团|铲屎|尿团)/i },
+    { tag: "可冲", re: /(可冲|冲厕所|可溶解)/i },
+    { tag: "耐咬", re: /(耐咬|咬坏|拆家|磨牙|啃咬)/i },
+    { tag: "益智", re: /(益智|漏食|解闷|无聊)/i },
+    { tag: "互动", re: /(互动|陪玩|逗猫|运动量)/i },
+    { tag: "静音", re: /(静音|噪音|声音小|夜里)/i },
+    { tag: "可水洗", re: /(可水洗|清洗|拆洗|好打理)/i },
+    { tag: "肠胃", re: /(肠胃|软便|消化|益生菌|拉稀|便秘)/i },
+    { tag: "美毛", re: /(美毛|掉毛|毛发|毛量|卵磷脂)/i },
+    { tag: "豆腐砂", re: /(豆腐砂|豆腐猫砂|豆腐)/i },
+    { tag: "膨润土", re: /(矿砂|膨润土|黏土)/i },
+    { tag: "大容量", re: /(大容量|耐用|久用|划算|囤货)/i },
+    { tag: "犬猫通用", re: /(犬猫通用|猫狗通用|猫狗)/i }
+  ];
+
+  const PET_RE = /(猫|狗|犬|宠物|毛孩子|主子|幼猫|幼犬|猫砂|猫粮|狗粮|犬粮|冻干|益生菌|铲屎|布偶|英短|美短|银渐层|金渐层|柯基|柴犬|金毛|边牧|泰迪|比熊|哈士奇|拉布拉多|博美|法斗|萨摩|德牧|雪纳瑞|橘猫|狸花|暹罗)/i;
+  const SHOPPING_RE = /(推荐|挑|选|买|哪个|哪款|怎么选|适合|有没有|求推荐|想要|预算|性价比|对比|纠结|好用|值得)/i;
+  const HEALTH_RED_FLAG_RE = /(呕吐|拉稀|便血|血便|抽搐|发烧|中毒|呼吸困难|精神差|不吃不喝|绝食|尿闭|尿血)/i;
+
+  const state = {
+    messages: [],
+    settings: { ...DEFAULTS },
+    attachments: [],
+    isGenerating: false,
+    activeGeneration: null,
+    apiStatus: "idle",
+    uploading: 0,
+    animateId: null,
+    settingsSaveTimer: null,
+    saveStatusTimer: null,
+    toastTimer: null,
+    imageDialogOpener: null
+  };
+
+  const els = {};
+
+  /* ============================== Boot ============================== */
+  document.addEventListener("DOMContentLoaded", init);
+
+  function init() {
+    cacheElements();
+    loadState();
+    bindEvents();
+    syncSettingsUI();
+    updateModeDescription();
+    updateConnectionUI();
+    renderMessages({ forceScroll: false, instant: true });
+    updateWelcome();
+    updateSendButton();
+    autoResizeInput();
+    els.catalogCount.textContent = `${CATALOG.length} 款商品库`;
+    els.heroCatalogMeta.textContent = `${CATALOG.length} 款精选单品`;
+
+    if (state.messages.length) {
+      requestAnimationFrame(() => scrollToBottom("auto"));
+    }
+  }
+
+  function cacheElements() {
+    const ids = [
+      "app", "settingsSidebar", "openSettingsBtn", "closeSettingsBtn", "drawerScrim",
+      "apiKeyInput", "toggleKeyBtn", "modelModeSelect", "modeDescription", "modeFieldNote",
+      "endpointInput", "quickModelInput", "expertModelInput", "resetApiBtn",
+      "connectionBadge", "connectionLabel", "engineState", "engineStateLabel", "heroCatalogMeta", "catalogCount",
+      "conversation", "welcome", "messages", "typingRow", "typingLabel",
+      "composer", "messageInput", "sendBtn", "sendBtnLabel", "attachBtn", "fileInput", "attachmentStrip",
+      "clearBtn", "saveState", "saveStateLabel", "clearDialog", "cancelClearBtn", "confirmClearBtn",
+      "imageDialog", "lightboxImage", "closeImageBtn", "toast"
+    ];
+    for (const id of ids) els[id] = document.getElementById(id);
+  }
+
+  /* ============================== Event wiring ============================== */
+  function bindEvents() {
+    els.apiKeyInput.addEventListener("input", () => {
+      state.settings.apiKey = els.apiKeyInput.value;
+      resetApiStatus();
+      scheduleSettingsSave();
+      updateConnectionUI();
+    });
+    els.toggleKeyBtn.addEventListener("click", toggleKeyVisibility);
+    els.modelModeSelect.addEventListener("change", () => {
+      state.settings.mode = els.modelModeSelect.value === "expert" ? "expert" : "quick";
+      resetApiStatus();
+      scheduleSettingsSave();
+      updateModeDescription();
+      updateConnectionUI();
+    });
+    els.endpointInput.addEventListener("input", () => {
+      state.settings.endpoint = els.endpointInput.value.trim();
+      resetApiStatus();
+      scheduleSettingsSave();
+      updateConnectionUI();
+    });
+    els.quickModelInput.addEventListener("input", () => {
+      state.settings.quickModel = els.quickModelInput.value.trim();
+      resetApiStatus();
+      scheduleSettingsSave();
+    });
+    els.expertModelInput.addEventListener("input", () => {
+      state.settings.expertModel = els.expertModelInput.value.trim();
+      resetApiStatus();
+      scheduleSettingsSave();
+    });
+    els.resetApiBtn.addEventListener("click", resetAdvancedSettings);
+
+    els.openSettingsBtn.addEventListener("click", openDrawer);
+    els.closeSettingsBtn.addEventListener("click", closeDrawer);
+    els.drawerScrim.addEventListener("click", closeDrawer);
+    window.addEventListener("resize", handleResize);
+
+    els.clearBtn.addEventListener("click", openClearDialog);
+    els.cancelClearBtn.addEventListener("click", () => els.clearDialog.close());
+    els.confirmClearBtn.addEventListener("click", clearConversation);
+    els.clearDialog.addEventListener("click", closeDialogOnBackdrop);
+
+    els.sendBtn.addEventListener("click", () => {
+      if (state.activeGeneration) stopGeneration();
+      else sendMessage();
+    });
+    els.messageInput.addEventListener("input", () => {
+      autoResizeInput();
+      updateSendButton();
+    });
+    els.messageInput.addEventListener("keydown", handleComposerKeydown);
+    els.messageInput.addEventListener("paste", handlePaste);
+    els.attachBtn.addEventListener("click", () => {
+      if (state.uploading > 0) {
+        showToast("图片还在处理中，稍等一下", "info");
+        return;
+      }
+      els.fileInput.click();
+    });
+    els.fileInput.addEventListener("change", async () => {
+      const files = Array.from(els.fileInput.files || []);
+      els.fileInput.value = "";
+      await addImageFiles(files);
+    });
+    els.attachmentStrip.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-remove-attachment]");
+      if (!button) return;
+      removeAttachment(button.getAttribute("data-remove-attachment"));
+    });
+
+    const composer = els.composer;
+    composer.addEventListener("dragover", (event) => {
+      if (!event.dataTransfer) return;
+      if (!Array.from(event.dataTransfer.types || []).includes("Files")) return;
+      event.preventDefault();
+      composer.classList.add("drag-over");
+    });
+    composer.addEventListener("dragleave", (event) => {
+      if (composer.contains(event.relatedTarget)) return;
+      composer.classList.remove("drag-over");
+    });
+    composer.addEventListener("drop", async (event) => {
+      if (!event.dataTransfer || !event.dataTransfer.files.length) return;
+      event.preventDefault();
+      composer.classList.remove("drag-over");
+      await addImageFiles(Array.from(event.dataTransfer.files));
+    });
+    composer.addEventListener("paste", handlePaste);
+
+    els.welcome.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-prompt]");
+      if (!button) return;
+      if (state.activeGeneration) {
+        showToast("先等这条回复完成，或点击“停止”", "info");
+        return;
+      }
+      els.messageInput.value = button.getAttribute("data-prompt") || "";
+      autoResizeInput();
+      updateSendButton();
+      sendMessage();
+    });
+
+    els.messages.addEventListener("click", (event) => {
+      const imageButton = event.target.closest(".message-image");
+      if (!imageButton) return;
+      const image = imageButton.querySelector("img");
+      if (!image) return;
+      openImageDialog(image.src, image.alt);
+    });
+    els.closeImageBtn.addEventListener("click", () => els.imageDialog.close());
+    els.imageDialog.addEventListener("click", closeDialogOnBackdrop);
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (els.app.classList.contains("is-drawer-open")) {
+        closeDrawer();
+      }
+    });
+
+    window.addEventListener("storage", (event) => {
+      if (event.key === STORAGE_KEYS.messages) {
+        loadMessagesFromStorage();
+        renderMessages({ forceScroll: false });
+        showToast("已同步其他标签页中的对话", "info");
+      }
+    });
+  }
+
+  function handleComposerKeydown(event) {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    if (state.activeGeneration) {
+      showToast("请先等待回复结束，或点击“停止”", "info");
+      return;
+    }
+    sendMessage();
+  }
+
+  function handleResize() {
+    if (window.innerWidth > 1060 && els.app.classList.contains("is-drawer-open")) {
+      closeDrawer();
+    }
+  }
+
+  /* ============================== State / persistence ============================== */
+  function loadState() {
+    loadSettingsFromStorage();
+    loadMessagesFromStorage();
+  }
+
+  function loadSettingsFromStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.settings);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return;
+      state.settings = {
+        apiKey: typeof parsed.apiKey === "string" ? parsed.apiKey.slice(0, 500) : DEFAULTS.apiKey,
+        mode: parsed.mode === "expert" ? "expert" : "quick",
+        endpoint: typeof parsed.endpoint === "string" && parsed.endpoint.trim() ? parsed.endpoint.trim().slice(0, 1000) : DEFAULTS.endpoint,
+        quickModel: typeof parsed.quickModel === "string" && parsed.quickModel.trim() ? parsed.quickModel.trim().slice(0, 200) : DEFAULTS.quickModel,
+        expertModel: typeof parsed.expertModel === "string" && parsed.expertModel.trim() ? parsed.expertModel.trim().slice(0, 200) : DEFAULTS.expertModel
+      };
+    } catch (error) {
+      state.settings = { ...DEFAULTS };
+    }
+  }
+
+  function loadMessagesFromStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.messages);
+      if (!raw) {
+        state.messages = [];
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      state.messages = Array.isArray(parsed)
+        ? parsed.map(normalizeStoredMessage).filter(Boolean).slice(-300)
+        : [];
+    } catch (error) {
+      state.messages = [];
+    }
+  }
+
+  function normalizeStoredMessage(message) {
+    if (!message || (message.role !== "user" && message.role !== "assistant")) return null;
+    const text = typeof message.text === "string" ? message.text.slice(0, 30000) : "";
+    const images = Array.isArray(message.images)
+      ? message.images.filter(isSafeImageDataUrl).slice(0, 4)
+      : [];
+    const products = Array.isArray(message.products)
+      ? message.products.map(normalizeProductCard).filter(Boolean).slice(0, 3)
+      : [];
+    const guidance = typeof message.guidance === "string" ? message.guidance.slice(0, 5000) : "";
+    const source = ["local", "api", "error"].includes(message.source) ? message.source : (message.role === "assistant" ? "api" : "user");
+    const ts = Number(message.ts);
+    return {
+      id: typeof message.id === "string" && message.id.length < 120 ? message.id : makeId(),
+      role: message.role,
+      text,
+      images,
+      products,
+      guidance,
+      source,
+      error: message.error === true || source === "error",
+      mode: message.mode === "expert" ? "expert" : "quick",
+      provider: typeof message.provider === "string" ? message.provider.slice(0, 30) : "",
+      model: typeof message.model === "string" ? message.model.slice(0, 120) : "",
+      ts: Number.isFinite(ts) && ts > 0 ? ts : Date.now()
+    };
+  }
+
+  function normalizeProductCard(product) {
+    if (!product || typeof product !== "object") return null;
+    const match = Number(product.match);
+    return {
+      id: typeof product.id === "string" ? product.id.slice(0, 80) : "",
+      brand: typeof product.brand === "string" ? product.brand.slice(0, 60) : "",
+      name: typeof product.name === "string" ? product.name.slice(0, 120) : "",
+      category: typeof product.category === "string" ? product.category.slice(0, 20) : "用品",
+      price: Number.isFinite(Number(product.price)) ? Number(product.price) : 0,
+      unit: typeof product.unit === "string" ? product.unit.slice(0, 30) : "",
+      tags: Array.isArray(product.tags) ? product.tags.filter(tag => typeof tag === "string").map(tag => tag.slice(0, 20)).slice(0, 6) : [],
+      desc: typeof product.desc === "string" ? product.desc.slice(0, 200) : "",
+      reason: typeof product.reason === "string" ? product.reason.slice(0, 200) : "",
+      match: Number.isFinite(match) ? Math.min(99, Math.max(1, Math.round(match))) : 50
+    };
+  }
+
+  function persistMessages({ silent = false } = {}) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.messages, JSON.stringify(state.messages));
+      flashSaveState(true);
+      return true;
+    } catch (error) {
+      flashSaveState(false);
+      if (!silent) {
+        showToast("本地存储空间不足，当前记录可能无法在刷新后保留", "error");
+      }
+      return false;
+    }
+  }
+
+  function saveSettings() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(state.settings));
+    } catch (error) {
+      showToast("设置保存失败，浏览器可能不允许本地存储", "error");
+    }
+  }
+
+  function scheduleSettingsSave() {
+    window.clearTimeout(state.settingsSaveTimer);
+    state.settingsSaveTimer = window.setTimeout(saveSettings, 220);
+  }
+
+  function flashSaveState(ok) {
+    window.clearTimeout(state.saveStatusTimer);
+    els.saveState.classList.toggle("is-error", !ok);
+    els.saveStateLabel.textContent = ok ? "已保存到本地" : "本地存储已满";
+    state.saveStatusTimer = window.setTimeout(() => {
+      els.saveState.classList.remove("is-error");
+      els.saveStateLabel.textContent = "本地自动保存";
+    }, 2400);
+  }
+
+  function deleteConversation() {
+    state.messages = [];
+    try {
+      localStorage.removeItem(STORAGE_KEYS.messages);
+    } catch (error) {
+      // The in-memory conversation is still cleared.
+    }
+    state.animateId = null;
+    els.messages.innerHTML = "";
+    els.welcome.hidden = false;
+    updateWelcome();
+    scrollConversationToTop();
+  }
+
+  /* ============================== UI sync ============================== */
+  function syncSettingsUI() {
+    els.apiKeyInput.value = state.settings.apiKey;
+    els.modelModeSelect.value = state.settings.mode;
+    els.endpointInput.value = state.settings.endpoint;
+    els.quickModelInput.value = state.settings.quickModel;
+    els.expertModelInput.value = state.settings.expertModel;
+  }
+
+  function updateModeDescription() {
+    const mode = state.settings.mode;
+    els.modeDescription.textContent = mode === "expert"
+      ? "更深入地拆解成分、场景与取舍；连接 API 时响应会稍慢。"
+      : "即时应答，适合日常挑选、比价与轻量咨询。";
+    els.modeFieldNote.textContent = hasApiKey() ? "API 模式" : "本地可用";
+  }
+
+  function toggleKeyVisibility() {
+    const isPassword = els.apiKeyInput.type === "password";
+    els.apiKeyInput.type = isPassword ? "text" : "password";
+    els.toggleKeyBtn.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#${isPassword ? "i-eye-off" : "i-eye"}"></use></svg>`;
+    els.toggleKeyBtn.setAttribute("aria-label", isPassword ? "隐藏 API Key" : "显示 API Key");
+  }
+
+  function resetAdvancedSettings() {
+    state.settings.endpoint = DEFAULTS.endpoint;
+    state.settings.quickModel = DEFAULTS.quickModel;
+    state.settings.expertModel = DEFAULTS.expertModel;
+    els.endpointInput.value = DEFAULTS.endpoint;
+    els.quickModelInput.value = DEFAULTS.quickModel;
+    els.expertModelInput.value = DEFAULTS.expertModel;
+    resetApiStatus();
+    scheduleSettingsSave();
+    updateConnectionUI();
+    showToast("已恢复默认接口与模型", "info");
+  }
+
+  function resetApiStatus() {
+    state.apiStatus = "idle";
+  }
+
+  function updateConnectionUI() {
+    const hasKey = hasApiKey();
+    const modeLabel = state.settings.mode === "expert" ? "专家模式" : "快速模式";
+    let label = "本地体验";
+    let badgeClass = "status-badge";
+
+    if (hasKey) {
+      if (state.apiStatus === "ok") {
+        label = "API 已连接";
+        badgeClass += " is-api";
+      } else if (state.apiStatus === "error") {
+        label = "连接异常";
+        badgeClass += " is-error";
+      } else {
+        label = "API 就绪";
+        badgeClass += " is-api";
+      }
+    }
+
+    els.connectionBadge.className = badgeClass;
+    els.connectionLabel.textContent = label;
+    els.engineStateLabel.textContent = hasKey
+      ? `API 已配置 · ${modeLabel}`
+      : `本地相似度引擎就绪 · ${modeLabel}`;
+    els.modeFieldNote.textContent = hasKey ? "API 模式" : "本地可用";
+  }
+
+  function updateWelcome() {
+    const empty = state.messages.length === 0;
+    els.welcome.hidden = !empty;
+  }
+
+  function updateSendButton() {
+    if (state.isGenerating) {
+      els.sendBtn.disabled = false;
+      els.sendBtn.classList.add("is-stop");
+      els.sendBtn.setAttribute("aria-label", "停止生成");
+      els.sendBtn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-stop"></use></svg><span>停止</span>';
+      return;
+    }
+
+    els.sendBtn.classList.remove("is-stop");
+    els.sendBtn.setAttribute("aria-label", "发送消息");
+    els.sendBtn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-send"></use></svg><span id="sendBtnLabel">发送</span>';
+    // The label element reference is rebuilt above; keep the cached reference usable.
+    els.sendBtnLabel = document.getElementById("sendBtnLabel");
+    const hasContent = els.messageInput.value.trim().length > 0 || state.attachments.length > 0;
+    els.sendBtn.disabled = !hasContent || state.uploading > 0;
+    els.sendBtn.title = state.uploading > 0 ? "正在处理图片…" : "发送消息";
+  }
+
+  function setGenerating(generation) {
+    state.activeGeneration = generation;
+    state.isGenerating = Boolean(generation);
+    updateSendButton();
+  }
+
+  function showTyping(label) {
+    els.typingLabel.textContent = label;
+    els.typingRow.hidden = false;
+    requestAnimationFrame(() => scrollToBottom("smooth"));
+  }
+
+  function hideTyping() {
+    els.typingRow.hidden = true;
+  }
+
+  function finishGeneration(generation) {
+    if (state.activeGeneration !== generation) return;
+    state.activeGeneration = null;
+    state.isGenerating = false;
+    hideTyping();
+    updateSendButton();
+  }
+
+  function stopGeneration() {
+    const generation = state.activeGeneration;
+    if (!generation) return;
+    generation.stopped = true;
+    state.activeGeneration = null;
+    state.isGenerating = false;
+    if (generation.controller) generation.controller.abort();
+    window.clearTimeout(generation.timeoutId);
+    window.clearTimeout(generation.localTimer);
+    hideTyping();
+    updateSendButton();
+    showToast("已停止生成", "info");
+  }
+
+  /* ============================== Composer and images ============================== */
+  function autoResizeInput() {
+    const input = els.messageInput;
+    input.style.height = "auto";
+    const next = Math.min(Math.max(input.scrollHeight, 37), 150);
+    input.style.height = `${next}px`;
+  }
+
+  function handlePaste(event) {
+    const files = Array.from(event.clipboardData?.files || []).filter(file => file.type.startsWith("image/"));
+    if (!files.length) return;
+    event.preventDefault();
+    event.stopPropagation();
+    addImageFiles(files);
+  }
+
+  async function addImageFiles(files) {
+    if (!files.length) return;
+    if (state.uploading > 0) {
+      showToast("上一批图片还在处理，请稍候", "info");
+      return;
+    }
+
+    const available = 4 - state.attachments.length;
+    if (available <= 0) {
+      showToast("每条消息最多附带 4 张图片", "info");
+      return;
+    }
+
+    const accepted = [];
+    let rejectedType = 0;
+    let rejectedSize = 0;
+    for (const file of files) {
+      if (accepted.length >= available) break;
+      if (!file.type || !/^image\/(png|jpeg|webp|gif)$/i.test(file.type)) {
+        rejectedType += 1;
+        continue;
+      }
+      if (file.size > 12 * 1024 * 1024) {
+        rejectedSize += 1;
+        continue;
+      }
+      accepted.push(file);
+    }
+
+    if (!accepted.length) {
+      if (rejectedType) showToast("请选择 PNG、JPG、WebP 或 GIF 图片", "error");
+      else if (rejectedSize) showToast("单张图片不能超过 12MB", "error");
+      else showToast("已达每条消息 4 张图片的上限", "info");
+      return;
+    }
+
+    state.uploading += 1;
+    updateSendButton();
+    const failures = [];
+    for (const file of accepted) {
+      try {
+        const dataUrl = await compressImageFile(file);
+        state.attachments.push({
+          id: makeId(),
+          dataUrl,
+          name: file.name || "图片",
+          size: file.size
+        });
+      } catch (error) {
+        failures.push(file.name || "图片");
+      }
+    }
+    state.uploading = Math.max(0, state.uploading - 1);
+    renderAttachments();
+    updateSendButton();
+
+    const notes = [];
+    if (rejectedType) notes.push("部分文件不是支持的图片格式");
+    if (rejectedSize) notes.push("部分图片超过 12MB");
+    if (files.length > available) notes.push("最多保留 4 张图片");
+    if (failures.length) notes.push(`${failures.length} 张图片处理失败`);
+    if (notes.length) showToast(notes.join("；"), "info");
+  }
+
+  function compressImageFile(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("read_failed"));
+      reader.onload = () => {
+        const image = new Image();
+        image.onerror = () => reject(new Error("decode_failed"));
+        image.onload = () => {
+          try {
+            const maxSide = 1400;
+            const scale = Math.min(1, maxSide / Math.max(image.naturalWidth || 1, image.naturalHeight || 1));
+            const width = Math.max(1, Math.round((image.naturalWidth || 1) * scale));
+            const height = Math.max(1, Math.round((image.naturalHeight || 1) * scale));
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext("2d");
+            if (!context) throw new Error("canvas_unavailable");
+            context.imageSmoothingEnabled = true;
+            context.imageSmoothingQuality = "high";
+            if (file.type === "image/jpeg") {
+              context.fillStyle = "#ffffff";
+              context.fillRect(0, 0, width, height);
+            }
+            context.drawImage(image, 0, 0, width, height);
+            let dataUrl = canvas.toDataURL("image/webp", 0.82);
+            if (!dataUrl.startsWith("data:image/webp")) {
+              dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+            }
+            if (!isSafeImageDataUrl(dataUrl)) throw new Error("encode_failed");
+            resolve(dataUrl);
+          } catch (error) {
+            reject(error);
+          }
+        };
+        image.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderAttachments() {
+    if (!state.attachments.length) {
+      els.attachmentStrip.hidden = true;
+      els.attachmentStrip.innerHTML = "";
+      return;
+    }
+    els.attachmentStrip.hidden = false;
+    els.attachmentStrip.innerHTML = state.attachments.map(attachment => `
+      <div class="attachment" title="${escapeAttr(attachment.name)}">
+        <img src="${attachment.dataUrl}" alt="待发送图片">
+        <button class="attachment-remove" type="button" data-remove-attachment="${escapeAttr(attachment.id)}" aria-label="移除图片">
+          <svg class="icon" aria-hidden="true"><use href="#i-close"></use></svg>
+        </button>
+      </div>
+    `).join("");
+  }
+
+  function removeAttachment(id) {
+    state.attachments = state.attachments.filter(attachment => attachment.id !== id);
+    renderAttachments();
+    updateSendButton();
+  }
+
+  function openImageDialog(src, alt) {
+    if (!isSafeImageDataUrl(src)) return;
+    els.lightboxImage.src = src;
+    els.lightboxImage.alt = alt || "用户上传的图片";
+    state.imageDialogOpener = document.activeElement;
+    if (!els.imageDialog.open) els.imageDialog.showModal();
+  }
+
+  /* ============================== Drawer ============================== */
+  function openDrawer() {
+    els.app.classList.add("is-drawer-open");
+    els.drawerScrim.setAttribute("aria-hidden", "false");
+    els.openSettingsBtn.setAttribute("aria-expanded", "true");
+    document.body.style.overflow = "hidden";
+    window.setTimeout(() => {
+      if (window.innerWidth <= 1060) els.apiKeyInput.focus({ preventScroll: true });
+    }, 260);
+  }
+
+  function closeDrawer() {
+    if (!els.app.classList.contains("is-drawer-open")) return;
+    els.app.classList.remove("is-drawer-open");
+    els.drawerScrim.setAttribute("aria-hidden", "true");
+    els.openSettingsBtn.setAttribute("aria-expanded", "false");
+    document.body.style.overflow = "";
+    els.openSettingsBtn.focus({ preventScroll: true });
+  }
+
+  /* ============================== Sending ============================== */
+  function sendMessage() {
+    if (state.activeGeneration) return;
+    if (state.uploading > 0) {
+      showToast("图片还在处理，请稍等一下", "info");
+      return;
+    }
+
+    const text = els.messageInput.value.trim();
+    const images = state.attachments.map(attachment => attachment.dataUrl);
+    if (!text && !images.length) {
+      els.messageInput.focus();
+      return;
+    }
+
+    const userMessage = {
+      id: makeId(),
+      role: "user",
+      text,
+      images,
+      products: [],
+      guidance: "",
+      source: "user",
+      mode: state.settings.mode,
+      provider: "",
+      model: "",
+      ts: Date.now()
+    };
+    state.messages.push(userMessage);
+    state.animateId = userMessage.id;
+    persistMessages();
+
+    els.messageInput.value = "";
+    state.attachments = [];
+    renderAttachments();
+    autoResizeInput();
+    updateSendButton();
+    updateWelcome();
+    renderMessages({ forceScroll: true });
+    els.messageInput.focus({ preventScroll: true });
+
+    const generation = {
+      id: makeId(),
+      stopped: false,
+      controller: null,
+      timeoutId: null,
+      localTimer: null,
+      timedOut: false
+    };
+    setGenerating(generation);
+
+    if (!hasApiKey()) {
+      showTyping("正在计算属性相似度并匹配商品库…");
+      const delay = state.settings.mode === "expert" ? 1200 : 760;
+      generation.localTimer = window.setTimeout(() => {
+        if (state.activeGeneration !== generation) return;
+        let reply;
+        try {
+          reply = buildLocalReply(text, images);
+        } catch (error) {
+          reply = {
+            text: "本地选品引擎刚刚走神了。可以再试一次，或换一种描述方式。",
+            products: [],
+            guidance: "",
+            source: "local"
+          };
+        }
+        addAssistantMessage({
+          ...reply,
+          source: "local",
+          mode: state.settings.mode
+        });
+        finishGeneration(generation);
+      }, delay + Math.random() * 380);
+      if (images.length && hasApiKey() === false) {
+        showToast("未填 API Key，图片仅保存在本地并随消息展示", "info");
+      }
+      return;
+    }
+
+    if (images.length && !endpointSupportsVision()) {
+      showToast("当前接口为文本模型：图片会保留在对话中，但不会被读取", "info");
+    }
+    runApiRequest(generation, userMessage);
+  }
+
+  async function runApiRequest(generation, userMessage) {
+    showTyping(state.settings.mode === "expert"
+      ? "专家模式正在拆解需求并做深度匹配…"
+      : "正在连接模型并组织推荐…");
+
+    const controller = new AbortController();
+    generation.controller = controller;
+    const mode = state.settings.mode;
+    const model = mode === "expert" ? state.settings.expertModel : state.settings.quickModel;
+    const endpointRaw = state.settings.endpoint;
+    const apiKey = state.settings.apiKey.trim();
+
+    let endpoint;
+    try {
+      endpoint = normalizeEndpoint(endpointRaw);
+    } catch (error) {
+      state.apiStatus = "error";
+      updateConnectionUI();
+      appendApiError(generation, "API 接口地址格式不正确。请在“高级连接设置”中填写完整的 https:// 地址。");
+      finishGeneration(generation);
+      return;
+    }
+    if (!model) {
+      state.apiStatus = "error";
+      updateConnectionUI();
+      appendApiError(generation, `未填写${mode === "expert" ? "专家" : "快速"}模型 ID，请先在左侧高级设置中补充。`);
+      finishGeneration(generation);
+      return;
+    }
+
+    const timeoutMs = mode === "expert" ? 150000 : 75000;
+    generation.timeoutId = window.setTimeout(() => {
+      generation.timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        mode: "cors",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model,
+          messages: buildApiMessages(),
+          stream: false
+        }),
+        signal: controller.signal
+      });
+
+      const rawText = await response.text();
+      let data = null;
+      try { data = rawText ? JSON.parse(rawText) : null; } catch (error) { data = null; }
+
+      if (!response.ok) {
+        const apiMessage = data?.error?.message || data?.message || rawText.slice(0, 320) || `HTTP ${response.status}`;
+        const friendly = friendlyApiError(response.status, apiMessage);
+        throw Object.assign(new Error(friendly), { userMessage: friendly });
+      }
+
+      if (!data) throw Object.assign(new Error("empty_response"), { userMessage: "接口返回了空内容，请确认接口地址与模型是否匹配。" });
+      const choice = data.choices && data.choices[0];
+      const content = extractApiContent(choice?.message?.content);
+      if (!content || !content.trim()) {
+        throw Object.assign(
+          new Error("empty_content"),
+          { userMessage: "模型已响应，但没有返回可显示的文字。可以重新发送一次，或检查模型是否支持当前请求格式。" }
+        );
+      }
+      if (state.activeGeneration !== generation) return;
+
+      state.apiStatus = "ok";
+      updateConnectionUI();
+      addAssistantMessage({
+        text: content.trim().slice(0, 30000),
+        products: [],
+        guidance: "",
+        source: "api",
+        mode,
+        provider: providerFromEndpoint(endpoint),
+        model
+      });
+      finishGeneration(generation);
+    } catch (error) {
+      if (state.activeGeneration !== generation) return;
+      if (generation.stopped) return;
+
+      state.apiStatus = "error";
+      updateConnectionUI();
+
+      let message;
+      if (error.name === "AbortError") {
+        message = generation.timedOut
+          ? "请求超时了。专家模式可能需要更长时间，也可能是网络或接口暂时不可用。请稍后重试。"
+          : "请求已中断。";
+      } else if (error.userMessage) {
+        message = error.userMessage;
+      } else if (error instanceof TypeError) {
+        message = "请求没有送达接口。请检查网络连接与接口地址。\n\n如果你是直接双击打开本地文件，目标 API 还需要允许浏览器跨域访问（CORS）。可以换用支持 CORS 的接口，或留空 API Key 体验本地相似度引擎。";
+      } else {
+        message = "连接模型时发生了一个意外错误，请检查网络、接口地址和模型配置后重试。";
+      }
+      appendApiError(generation, message);
+      finishGeneration(generation);
+    } finally {
+      window.clearTimeout(generation.timeoutId);
+    }
+  }
+
+  function appendApiError(generation, message) {
+    if (state.activeGeneration !== generation) return;
+    addAssistantMessage({
+      text: message,
+      products: [],
+      guidance: "",
+      source: "error",
+      error: true,
+      mode: state.settings.mode
+    });
+    finishGeneration(generation);
+  }
+
+  function addAssistantMessage(payload) {
+    const message = {
+      id: makeId(),
+      role: "assistant",
+      text: payload.text || "",
+      images: [],
+      products: Array.isArray(payload.products) ? payload.products.slice(0, 3) : [],
+      guidance: payload.guidance || "",
+      source: payload.source || "api",
+      error: Boolean(payload.error),
+      mode: payload.mode || state.settings.mode,
+      provider: payload.provider || "",
+      model: payload.model || "",
+      ts: Date.now()
+    };
+    state.messages.push(message);
+    state.animateId = message.id;
+    hideTyping();
+    persistMessages();
+    renderMessages({ anchorMessageId: message.id });
+  }
+
+  function buildApiMessages() {
+    const usable = state.messages.filter(message =>
+      !message.error &&
+      (message.role === "user" || message.role === "assistant") &&
+      (message.text.trim() || message.images.length)
+    ).slice(-10);
+
+    const apiMessages = [{ role: "system", content: buildSystemPrompt() }];
+    for (const message of usable) {
+      if (message.role === "assistant") {
+        apiMessages.push({ role: "assistant", content: message.text });
+      } else {
+        apiMessages.push({ role: "user", content: buildUserApiContent(message) });
+      }
+    }
+    return apiMessages;
+  }
+
+  function buildUserApiContent(message) {
+    const images = message.images || [];
+    const text = message.text.trim();
+    if (images.length && endpointSupportsVision()) {
+      const parts = [];
+      if (text) parts.push({ type: "text", text });
+      else parts.push({ type: "text", text: "请看看这张图片，并结合宠物选品给出建议。" });
+      for (const image of images) {
+        parts.push({ type: "image_url", image_url: { url: image } });
+      }
+      return parts;
+    }
+    if (images.length) {
+      return `${text || "我想咨询图片里的商品或宠物。"}\n\n[用户附上了 ${images.length} 张图片，图片已以 Base64 保存在浏览器本地。当前使用文本模型，无法读取画面，请只依据文字内容回答，并在合适时说明这一点。]`;
+    }
+    return text;
+  }
+
+  function buildSystemPrompt() {
+    const catalogLines = CATALOG.map(product =>
+      `${product.brand}${product.name}｜${product.category}｜适合${product.species.join("/")}｜${product.ages.join("/")}｜${product.tags.join("/")}｜¥${product.price}/${product.unit}`
+    ).join("\n");
+
+    return [
+      "你是 PawMatch（宠配实验室）的宠物商品导购助手，服务于一个基于商品属性相似度的宠物购物网站。",
+      "你的工作方式：先理解用户的物种、年龄、品类、关键属性（如低敏、无谷、高蛋白、除臭、耐咬等）与预算，再按属性匹配度给出 1–3 个库内商品建议，并说明为什么匹配、有哪些需要注意的取舍。",
+      "语气温暖、克制、专业。不要堆砌营销词；不要编造库存、成分、医疗功效或折扣。价格只是演示数据，可提醒用户以实际页面为准。",
+      "用户没有提供足够信息时，先追问最关键的 1–2 项（例如猫还是狗、年龄段、预算），不要凭空猜测。",
+      "涉及持续呕吐、便血、呼吸困难、尿闭等健康异常时，优先建议尽快咨询兽医，不用保健品替代诊疗。",
+      "如用户上传了图片，只描述你能确定看到的内容；无法读取图片时如实说明。",
+      "回答使用简洁自然的中文，可使用少量 Markdown（列表、加粗），不要输出大段表格。",
+      "",
+      "当前演示商品库（只推荐以下库内商品；价格为演示数据）：",
+      catalogLines
+    ].join("\n");
+  }
+
+  function extractApiContent(content) {
+    if (typeof content === "string") return content;
+    if (Array.isArray(content)) {
+      return content.map(part => {
+        if (typeof part === "string") return part;
+        if (part && typeof part.text === "string") return part.text;
+        return "";
+      }).filter(Boolean).join("\n");
+    }
+    return "";
+  }
+
+  function normalizeEndpoint(raw) {
+    let value = String(raw || "").trim();
+    if (!value) throw new Error("empty_endpoint");
+    if (!/^https?:\/\//i.test(value)) value = `https://${value}`;
+    const url = new URL(value);
+    if (!/^https?:$/i.test(url.protocol)) throw new Error("bad_protocol");
+    return url.toString();
+  }
+
+  function endpointSupportsVision() {
+    return !/api\.deepseek\.com/i.test(state.settings.endpoint || "");
+  }
+
+  function hasApiKey() {
+    return Boolean(state.settings.apiKey && state.settings.apiKey.trim());
+  }
+
+  function providerFromEndpoint(endpoint) {
+    try {
+      const host = new URL(endpoint).hostname.toLowerCase();
+      if (host.includes("deepseek")) return "DeepSeek";
+      if (host.includes("openai")) return "OpenAI";
+      if (host.includes("moonshot")) return "Moonshot";
+      if (host.includes("dashscope") || host.includes("aliyun")) return "通义千问";
+      if (host.includes("siliconflow")) return "SiliconFlow";
+      if (host.includes("volces")) return "火山引擎";
+      return "API";
+    } catch (error) {
+      return "API";
+    }
+  }
+
+  function friendlyApiError(status, apiMessage) {
+    const detail = String(apiMessage || "").replace(/\s+/g, " ").slice(0, 260);
+    if (status === 401) return "API Key 验证失败（401）。请检查密钥是否完整、是否过期，或是否填错了接口。";
+    if (status === 402) return "接口账户余额不足（402）。请检查账户余额或更换可用的 API。";
+    if (status === 403) return `接口拒绝访问（403）。请确认这个 Key 是否有权调用当前模型。${detail ? `\n\n接口信息：${detail}` : ""}`;
+    if (status === 404) return "找不到接口地址（404）。请检查「高级连接设置」中的 API 地址是否为完整的 /chat/completions 路径。";
+    if (status === 429) return "请求过于频繁或额度受限（429）。稍等片刻再试，或检查账户额度。";
+    if (status >= 500) return `接口服务暂时异常（${status}）。可以稍后重试，或先使用本地体验模式。`;
+    return `接口返回 ${status}。${detail ? `\n\n接口信息：${detail}` : "请检查接口配置。"} `;
+  }
+
+  /* ============================== Local similarity engine ============================== */
+  function buildLocalReply(text, images) {
+    const rawText = String(text || "").trim();
+    const isExpert = state.settings.mode === "expert";
+    const imageNote = images && images.length
+      ? "图片已转换为 Base64 并保存在本地对话中；当前是本地体验模式，暂时不能识别画面内容。"
+      : "";
+
+    if (!rawText) {
+      return {
+        text: `图片我收到啦。\n\n${imageNote}\n\n你可以再用文字补充一下毛孩子的物种、年龄和需求，这样我才能用本地属性引擎帮你匹配商品。`,
+        products: [],
+        guidance: ""
+      };
+    }
+
+    if (HEALTH_RED_FLAG_RE.test(rawText)) {
+      return {
+        text: "听起来毛孩子的状态需要被认真对待。持续呕吐、腹泻、尿闭、精神差等情况，线上选品无法替代诊疗，建议尽快联系兽医或宠物急诊。\n\n在就医前，先记录症状开始时间、饮水与进食情况，不要自行喂药。等毛孩子稳定后，我再帮你挑选恢复期需要的口粮或用品。",
+        products: [],
+        guidance: "",
+      };
+    }
+
+    if (!PET_RE.test(rawText)) {
+      return {
+        text: "你好，我是 PawMatch，专门帮养宠家庭挑东西。\n\n可以这样问我：\n- “预算 200 元内，给英短挑一款低敏猫粮”\n- “小体型幼犬的磨牙玩具怎么选？”\n- “多猫家庭选豆腐砂还是膨润土？”\n\n告诉我物种、年龄、需求和预算，我会用商品属性相似度帮你排序。",
+        products: [],
+        guidance: "",
+      };
+    }
+
+    const context = parseLocalQuery(rawText);
+    const shoppingIntent = context.categories.length || context.tags.size || context.budget || SHOPPING_RE.test(rawText);
+
+    if (!shoppingIntent) {
+      return {
+        text: `收到，关于${context.speciesLabel || "毛孩子"}我记下了。${imageNote ? `\n\n${imageNote}` : ""}\n\n如果要开始选品，可以再告诉我你关注的是主粮、猫砂、玩具还是保健，以及大概预算。`,
+        products: [],
+        guidance: "",
+      };
+    }
+
+    if (!context.categories.length && !context.tags.size) {
+      const speciesText = context.speciesLabel ? `家里的${context.speciesLabel}` : "毛孩子";
+      return {
+        text: `我准备好为${speciesText}做属性匹配了。再补两个信息会更准：\n\n- 想解决哪一类需求？主粮、猫砂、玩具、保健还是日常用品\n- 预算大概多少？\n\n例如：“200 元内的低敏猫粮”或“多猫家庭用的低尘猫砂”。`,
+        products: [],
+        guidance: "",
+      };
+    }
+
+    const ranked = rankLocalProducts(context);
+    if (!ranked.length) {
+      return {
+        text: "这次没有找到足够贴近条件的库内商品。可以放宽一个条件试试，比如把预算提高一点，或不限定某一种材料。",
+        products: [],
+        guidance: "",
+      };
+    }
+
+    const top = ranked[0];
+    const intro = buildLocalIntro(context, ranked, isExpert);
+    const guidance = buildLocalGuidance(context, ranked, isExpert) + (imageNote ? `\n\n${imageNote}` : "");
+    const topLine = top
+      ? `\n\n**我的首选：${top.brand} ${top.name}**，它在「${top.reasonTags.join("、") || top.category}」上和你描述的需求最贴近。`
+      : "";
+
+    return {
+      text: `${intro}${topLine}`,
+      products: ranked,
+      guidance
+    };
+  }
+
+  function parseLocalQuery(text) {
+    const normalized = text.toLowerCase();
+    const cat = /(猫|英短|美短|布偶|缅因|狸花|橘猫|暹罗|银渐层|金渐层|折耳|加菲)/i.test(text);
+    const dog = /(狗|犬|柯基|柴犬|金毛|边牧|泰迪|比熊|哈士奇|拉布拉多|博美|法斗|萨摩|德牧|雪纳瑞)/i.test(text);
+
+    let speciesWanted = null;
+    if (cat && !dog) speciesWanted = "猫";
+    if (dog && !cat) speciesWanted = "犬";
+
+    const categories = CATEGORY_RULES.filter(rule => rule.re.test(text)).map(rule => rule.category);
+    const tags = new Set();
+    for (const rule of TAG_RULES) {
+      if (rule.re.test(text)) tags.add(rule.tag);
+    }
+
+    let ageWanted = null;
+    if (/(幼猫|小猫|奶猫|kitten)/i.test(text)) ageWanted = "幼猫";
+    else if (/(幼犬|小狗|奶狗|puppy)/i.test(text)) ageWanted = "幼犬";
+    else if (/(老年|高龄|senior)/i.test(text)) ageWanted = "老年";
+    else if (/(成猫|成年猫)/i.test(text)) ageWanted = "成猫";
+    else if (/(成犬|成年犬)/i.test(text)) ageWanted = "成犬";
+
+    const budget = extractBudget(text);
+    const speciesLabel = speciesWanted === "猫" ? "猫咪" : speciesWanted === "犬" ? "狗狗" : "";
+
+    return {
+      rawText: text,
+      normalized,
+      speciesWanted,
+      speciesLabel,
+      categories: [...new Set(categories)],
+      tags,
+      ageWanted,
+      budget,
+      isCatCompare: /(豆腐猫砂|豆腐砂)/i.test(text) && /(矿砂|膨润土)/i.test(text)
+    };
+  }
+
+  function extractBudget(text) {
+    const direct = text.match(/(?:预算|最多|不超过|低于|控制在)[^\d]{0,8}(\d+(?:\.\d+)?)/i);
+    const currency = text.match(/(\d+(?:\.\d+)?)\s*(?:元|块钱|块)(?:钱)?(?:以内|以下|左右|内)?/i);
+    const value = Number((direct || currency || [])[1]);
+    if (!Number.isFinite(value) || value <= 0) return null;
+    return value;
+  }
+
+  function rankLocalProducts(context) {
+    const scored = CATALOG.map(product => {
+      const speciesScore = !context.speciesWanted
+        ? 0.62
+        : product.species.includes(context.speciesWanted) ? 1 : 0;
+
+      const categoryScore = !context.categories.length
+        ? 0.5
+        : context.categories.includes(product.category) ? 1 : 0;
+
+      const matchedTags = [...context.tags].filter(tag => product.tags.includes(tag));
+      const tagScore = context.tags.size ? matchedTags.length / context.tags.size : 0.5;
+
+      const ageScore = getLocalAgeScore(product, context.ageWanted);
+      const budgetScore = getLocalBudgetScore(product, context.budget);
+
+      let raw = speciesScore * 0.32 + categoryScore * 0.29 + tagScore * 0.23 + ageScore * 0.08 + budgetScore * 0.08;
+      raw += Math.max(0, product.popularity - 70) * 0.00035;
+
+      if (context.speciesWanted && !product.species.includes(context.speciesWanted)) raw *= 0.16;
+      if (context.categories.length && !context.categories.includes(product.category)) raw *= 0.32;
+      if (context.budget && product.price > context.budget * 1.2) raw *= 0.38;
+      else if (context.budget && product.price > context.budget) raw *= 0.74;
+
+      const match = Math.round(Math.min(98, Math.max(56, 58 + raw * 42)));
+      const reasonTags = buildReasonTags(product, context, matchedTags, budgetScore);
+      const reason = buildProductReason(product, context, matchedTags);
+
+      return {
+        product,
+        raw,
+        match,
+        reasonTags,
+        productCard: {
+          id: product.id,
+          brand: product.brand,
+          name: product.name,
+          category: product.category,
+          price: product.price,
+          unit: product.unit,
+          tags: [...new Set([...matchedTags, ...product.tags])].slice(0, 3),
+          reasonTags,
+          desc: product.desc,
+          reason,
+          match
+        }
+      };
+    }).sort((a, b) => b.raw - a.raw);
+
+    let candidates = scored;
+    if (context.categories.length) {
+      const filtered = candidates.filter(item => context.categories.includes(item.product.category));
+      if (filtered.length) candidates = filtered;
+    }
+    if (context.speciesWanted) {
+      const filtered = candidates.filter(item => item.product.species.includes(context.speciesWanted));
+      if (filtered.length) candidates = filtered;
+    }
+    if (context.budget) {
+      const affordable = candidates.filter(item => item.product.price <= context.budget * 1.2);
+      if (affordable.length) candidates = affordable;
+    }
+    return candidates.slice(0, 3).map(item => item.productCard);
+  }
+
+  function getLocalAgeScore(product, ageWanted) {
+    if (!ageWanted) return 0.55;
+    if (ageWanted === "老年") {
+      return product.ages.includes("成犬") || product.ages.includes("成猫") || product.ages.includes("全阶段") ? 0.5 : 0.15;
+    }
+    if (product.ages.includes(ageWanted)) return 1;
+    if (product.ages.includes("全阶段")) return 0.85;
+    return 0.15;
+  }
+
+  function getLocalBudgetScore(product, budget) {
+    if (!budget) return 0.6;
+    if (product.price <= budget) return 1;
+    if (product.price <= budget * 1.2) return 0.55;
+    return 0;
+  }
+
+  function buildReasonTags(product, context, matchedTags, budgetScore) {
+    const tags = [];
+    if (context.speciesWanted && product.species.includes(context.speciesWanted)) {
+      tags.push(context.speciesWanted === "猫" ? "猫咪适用" : "狗狗适用");
+    }
+    if (context.ageWanted && (product.ages.includes(context.ageWanted) || product.ages.includes("全阶段"))) {
+      tags.push(context.ageWanted === "老年" ? "全阶段" : context.ageWanted);
+    }
+    tags.push(...matchedTags);
+    if (context.categories.length && context.categories.includes(product.category)) tags.push(product.category);
+    if (context.budget && budgetScore >= 0.95) tags.push("预算内");
+    if (!tags.length) tags.push(product.tags[0] || product.category);
+    return [...new Set(tags)].slice(0, 3);
+  }
+
+  function buildProductReason(product, context, matchedTags) {
+    const parts = [];
+    if (matchedTags.length) parts.push(`命中「${matchedTags.join("、")}」`);
+    if (context.budget && product.price <= context.budget) parts.push(`¥${formatPrice(product.price)} 在预算内`);
+    if (context.ageWanted && (product.ages.includes(context.ageWanted) || product.ages.includes("全阶段"))) {
+      parts.push(context.ageWanted === "老年" ? "全阶段可用" : `${context.ageWanted}适用`);
+    }
+    if (!parts.length) return product.desc;
+    return `${parts.join(" · ")}。${product.desc}`;
+  }
+
+  function buildLocalIntro(context, ranked, isExpert) {
+    const count = CATALOG.length;
+    if (isExpert) {
+      return `我按「物种 32% · 品类 29% · 属性 23% · 年龄 8% · 预算 8%」的加权属性相似度，从 ${count} 款在库商品中跑了一轮排序，筛出 ${ranked.length} 个更贴近你描述的选项：`;
+    }
+    return `从 ${count} 款在库商品里按属性相似度筛了一遍，这 ${ranked.length} 款更接近你的需求：`;
+  }
+
+  function buildLocalGuidance(context, ranked, isExpert) {
+    const category = context.categories[0];
+    const top = ranked[0];
+    const parts = [];
+
+    if (context.isCatCompare && category === "猫砂") {
+      parts.push("**豆腐砂 vs 膨润土：** 多猫家庭优先看结团速度、除臭和粉尘。豆腐砂粉尘低、可冲厕所，清理轻松；膨润土结团更紧实、除臭更强，但更重且通常粉尘略高。若更在意日常除臭，优先膨润土或混合砂；若更在意低尘与可冲，选豆腐砂。");
+      parts.push(`像 **${top.brand} ${top.name}** 这样的选项，匹配点集中在${top.reasonTags.join("、")}；无论选哪一种，每天铲屎和定期整盆更换都比换品牌更重要。`);
+    } else if (category === "主粮") {
+      parts.push("**喂前提醒：** 换粮建议用 7 天渐进法，从约 25% 新粮开始逐日增加，观察软便与皮肤反应。低敏需求优先单一动物蛋白源，但食物过敏最好由兽医结合饮食排查确认。");
+      parts.push(`这次先看 **${top.brand} ${top.name}** 与你的${context.budget ? "预算和" : ""}关键属性是否贴合。首次尝试可先买小规格，别一次囤太多。`);
+    } else if (category === "玩具") {
+      parts.push("**安全提醒：** 按体型选尺寸，避免能吞下的小零件与易脱落装饰；磨牙、发声类玩具建议在有人看护时使用，咬坏后及时更换。");
+      parts.push(`如果毛孩子正处于换牙期，优先选 **${top.brand} ${top.name}** 这类尺寸与耐咬度更匹配的款式；独处时间多，再考虑漏食益智类。`);
+    } else if (category === "保健") {
+      parts.push("**健康提醒：** 保健食品不能替代诊疗。若软便、掉毛或食欲变化持续超过几天，优先咨询兽医，再决定是否补充。");
+    } else if (category === "猫砂") {
+      parts.push("**使用提醒：** 多猫家庭建议猫砂盆数量为猫数 +1，每天至少铲一次，并定期整盆更换。粉尘敏感的猫优先低尘款，换砂时也要做渐进过渡。");
+    } else {
+      parts.push("**挑选提醒：** 先确认尺寸、材质和清洁方式，再看价格。比起一次买贵，更推荐先解决当前最具体的那个使用痛点。");
+    }
+
+    if (isExpert && top) {
+      parts.push(`从权重上看，这一款的物种适配为 32%，品类匹配为 29%，其余来自属性、年龄与预算。你也可以把更在意的点告诉我，我会重新排序。`);
+    }
+    return parts.join("\n\n");
+  }
+
+  /* ============================== Rendering ============================== */
+  function renderMessages({ forceScroll = false, instant = false, anchorMessageId = null } = {}) {
+    const nearBottom = isNearBottom();
+    const html = state.messages.length ? buildMessagesMarkup() : "";
+    els.messages.innerHTML = html;
+    updateWelcome();
+
+    if (state.messages.length) {
+      if (anchorMessageId) {
+        requestAnimationFrame(() => scrollReplyIntoReadingPosition(anchorMessageId));
+      } else if (forceScroll || nearBottom) {
+        requestAnimationFrame(() => scrollToBottom(forceScroll ? "smooth" : "auto", instant));
+      }
+    }
+
+    bindRenderedImageLoads();
+    state.animateId = null;
+  }
+
+  function buildMessagesMarkup() {
+    let html = "";
+    let dayKey = "";
+    for (const message of state.messages) {
+      const currentDay = dayKeyFor(message.ts);
+      if (currentDay !== dayKey) {
+        dayKey = currentDay;
+        html += `<div class="date-divider" role="separator">${escapeHtml(dayLabelFor(message.ts))}</div>`;
+      }
+      html += messageMarkup(message);
+    }
+    return html;
+  }
+
+  function messageMarkup(message) {
+    const isUser = message.role === "user";
+    const isError = message.error || message.source === "error";
+    const classes = ["message", isUser ? "user" : "assistant"];
+    if (isError) classes.push("error");
+    if (message.id === state.animateId) classes.push("is-new");
+
+    const author = isUser ? "你" : (isError ? "PawMatch · 连接提示" : "PawMatch");
+    const avatar = isUser
+      ? '<div class="avatar user" aria-hidden="true">你</div>'
+      : `<div class="avatar assistant" aria-hidden="true">${icon("i-paw")}</div>`;
+    const source = messageSourceTag(message);
+    const timeTitle = fullTimeLabel(message.ts);
+    const visibleTime = clockLabel(message.ts);
+
+    const body = [];
+    if (message.images && message.images.length) {
+      body.push(renderMessageImages(message.images));
+    }
+    if (isError) {
+      body.push(`<div class="error-hint">${icon("i-alert")}<div><strong>暂时没有连上模型</strong><div class="error-detail">${renderMarkdown(message.text)}</div></div></div>`);
+    } else if (message.text) {
+      body.push(`<div class="message-text">${isUser ? renderPlainText(message.text) : renderMarkdown(message.text)}</div>`);
+    }
+    if (!isUser && message.products && message.products.length) {
+      body.push(renderProducts(message.products));
+    }
+    if (!isUser && message.guidance) {
+      body.push(`<div class="message-guidance">${renderMarkdown(message.guidance)}</div>`);
+    }
+    if (!isUser && message.source === "local") {
+      body.push(`<div class="engine-note">${icon("i-spark")} 本地属性相似度引擎生成 · 未调用外部模型</div>`);
+    }
+
+    const bubbleRole = isError ? ' role="alert"' : "";
+    return `
+      <article class="${classes.join(" ")}" data-message-id="${escapeAttr(message.id)}">
+        ${avatar}
+        <div class="message-body">
+          <div class="message-meta">
+            <span class="msg-author">${author}</span>
+            <time class="msg-time" datetime="${new Date(message.ts).toISOString()}" title="${escapeAttr(timeTitle)}">${visibleTime}</time>
+            ${source}
+          </div>
+          <div class="bubble"${bubbleRole}>${body.join("")}</div>
+        </div>
+      </article>
+    `;
+  }
+
+  function messageSourceTag(message) {
+    if (message.role === "user") return "";
+    if (message.source === "error") return '<span class="msg-source source-error">系统提示</span>';
+    const mode = message.mode === "expert" ? "专家" : "快速";
+    if (message.source === "local") return `<span class="msg-source">本地 · ${mode}</span>`;
+    const provider = message.provider || "API";
+    return `<span class="msg-source" title="${escapeAttr(message.model || provider)}">${escapeHtml(provider)} · ${mode}</span>`;
+  }
+
+  function renderMessageImages(images) {
+    if (!images.length) return "";
+    const single = images.length === 1 ? " single" : "";
+    return `<div class="message-images${single}">${images.map(image => `
+      <button class="message-image" type="button" aria-label="查看大图">
+        <img src="${image}" alt="用户上传的图片" loading="lazy">
+      </button>
+    `).join("")}</div>`;
+  }
+
+  function renderProducts(products) {
+    return `
+      <div class="product-section">
+        <div class="product-heading">
+          <span class="product-heading-label">${icon("i-spark")} 属性相似度排序</span>
+          <span class="product-heading-note">TOP ${products.length}</span>
+        </div>
+        <div class="product-list">
+          ${products.map(renderProductCard).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderProductCard(product) {
+    const meta = CATEGORY_META[product.category] || CATEGORY_META["用品"];
+    const tags = Array.isArray(product.tags) ? product.tags.slice(0, 3).map(tag => `<span class="product-tag">${escapeHtml(tag)}</span>`).join("") : "";
+    const reason = product.reason || product.desc || "";
+    const price = formatPrice(product.price);
+    return `
+      <div class="product-card">
+        <div class="product-visual tone-${meta.tone}">
+          ${escapeHtml(product.category)}
+          ${icon(meta.icon)}
+        </div>
+        <div class="product-info">
+          <div class="product-top">
+            <span class="product-brand">${escapeHtml(product.brand)}</span>
+            <span class="product-match">${product.match}% 契合</span>
+          </div>
+          <div class="product-name" title="${escapeAttr(product.name)}">${escapeHtml(product.name)}</div>
+          <div class="product-tags">${tags}</div>
+          <div class="product-reason" title="${escapeAttr(reason)}">${escapeHtml(reason)}</div>
+        </div>
+        <div class="product-price">¥${price}<span> /${escapeHtml(product.unit)}</span></div>
+      </div>
+    `;
+  }
+
+  function bindRenderedImageLoads() {
+    const images = els.messages.querySelectorAll(".message-image img");
+    for (const image of images) {
+      if (image.complete) continue;
+      image.addEventListener("load", () => {
+        if (isNearBottom()) scrollToBottom("auto");
+      }, { once: true });
+    }
+  }
+
+  function scrollReplyIntoReadingPosition(messageId) {
+    const container = els.conversation;
+    const reply = [...els.messages.querySelectorAll(".message")].find(message => message.dataset.messageId === messageId);
+    if (!container || !reply) {
+      scrollToBottom("smooth");
+      return;
+    }
+
+    // A long answer is easier to read from its beginning (with the question in
+    // view) than from its final line. Short answers still settle at the bottom.
+    const bubble = reply.querySelector(".bubble");
+    const answerHeight = bubble ? bubble.offsetHeight : reply.offsetHeight;
+    if (answerHeight < Math.max(250, container.clientHeight * 0.56)) {
+      scrollToBottom("smooth");
+      return;
+    }
+
+    let anchor = reply;
+    let previous = reply.previousElementSibling;
+    while (previous && !previous.classList.contains("message")) previous = previous.previousElementSibling;
+    if (previous && previous.classList.contains("user")) anchor = previous;
+
+    const containerTop = container.getBoundingClientRect().top;
+    const anchorTop = anchor.getBoundingClientRect().top;
+    const targetTop = Math.max(0, container.scrollTop + anchorTop - containerTop - 14);
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    container.scrollTo({ top: targetTop, behavior: reducedMotion ? "auto" : "smooth" });
+  }
+
+  function scrollToBottom(behavior = "smooth", instant = false) {
+    const container = els.conversation;
+    if (!container) return;
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: instant ? "auto" : behavior
+    });
+  }
+
+  function scrollConversationToTop() {
+    els.conversation.scrollTo({ top: 0, behavior: "auto" });
+  }
+
+  function isNearBottom() {
+    const container = els.conversation;
+    if (!container) return true;
+    return container.scrollHeight - container.scrollTop - container.clientHeight < 160;
+  }
+
+  /* ============================== Clear / dialogs ============================== */
+  function openClearDialog() {
+    if (!state.messages.length && !state.isGenerating) {
+      showToast("现在还没有可清空的对话记录", "info");
+      return;
+    }
+    if (!els.clearDialog.open) els.clearDialog.showModal();
+    window.setTimeout(() => els.cancelClearBtn.focus(), 30);
+  }
+
+  function clearConversation() {
+    if (state.activeGeneration) stopGeneration();
+    deleteConversation();
+    try {
+      localStorage.removeItem(STORAGE_KEYS.messages);
+      flashSaveState(true);
+    } catch (error) {
+      showToast("浏览器未允许清除本地存储，但当前对话已清空", "error");
+    }
+    if (els.clearDialog.open) els.clearDialog.close();
+    showToast("对话记录已清空", "info");
+    els.messageInput.focus({ preventScroll: true });
+  }
+
+  function closeDialogOnBackdrop(event) {
+    if (event.target === event.currentTarget) event.currentTarget.close();
+  }
+
+  /* ============================== Markdown rendering ============================== */
+  function renderPlainText(text) {
+    return escapeHtml(text).replace(/\n/g, "<br>");
+  }
+
+  function renderMarkdown(raw) {
+    const source = escapeHtml(String(raw || "")).replace(/\r\n?/g, "\n");
+    const lines = source.split("\n");
+    let html = "";
+    let paragraph = [];
+    let listType = null;
+    let listItems = [];
+    let codeFence = false;
+    let codeLines = [];
+
+    const flushParagraph = () => {
+      if (!paragraph.length) return;
+      html += `<p>${inlineMarkdown(paragraph.join("<br>"))}</p>`;
+      paragraph = [];
+    };
+    const flushList = () => {
+      if (!listType) return;
+      html += `<${listType}>${listItems.map(item => `<li>${inlineMarkdown(item)}</li>`).join("")}</${listType}>`;
+      listType = null;
+      listItems = [];
+    };
+    const flush = () => {
+      flushParagraph();
+      flushList();
+    };
+
+    for (const line of lines) {
+      if (/^```/.test(line.trim())) {
+        if (codeFence) {
+          html += `<pre><code>${codeLines.join("\n")}</code></pre>`;
+          codeLines = [];
+          codeFence = false;
+        } else {
+          flush();
+          codeFence = true;
+        }
+        continue;
+      }
+      if (codeFence) {
+        codeLines.push(line);
+        continue;
+      }
+
+      if (!line.trim()) {
+        flush();
+        continue;
+      }
+
+      const heading = line.match(/^(#{1,4})\s+(.+)$/);
+      if (heading) {
+        flush();
+        const level = Math.min(4, heading[1].length + 2);
+        html += `<h${level}>${inlineMarkdown(heading[2])}</h${level}>`;
+        continue;
+      }
+
+      if (/^\s*(?:---+|\*\*\*+)\s*$/.test(line)) {
+        flush();
+        html += "<hr>";
+        continue;
+      }
+
+      const unordered = line.match(/^\s*[-*•]\s+(.+)$/);
+      if (unordered) {
+        flushParagraph();
+        if (listType !== "ul") {
+          flushList();
+          listType = "ul";
+        }
+        listItems.push(unordered[1]);
+        continue;
+      }
+
+      const ordered = line.match(/^\s*\d+[.)]\s+(.+)$/);
+      if (ordered) {
+        flushParagraph();
+        if (listType !== "ol") {
+          flushList();
+          listType = "ol";
+        }
+        listItems.push(ordered[1]);
+        continue;
+      }
+
+      const quote = line.match(/^&gt;\s?(.*)$/);
+      if (quote) {
+        flush();
+        html += `<blockquote>${inlineMarkdown(quote[1])}</blockquote>`;
+        continue;
+      }
+
+      flushList();
+      paragraph.push(line);
+    }
+
+    if (codeFence && codeLines.length) {
+      html += `<pre><code>${codeLines.join("\n")}</code></pre>`;
+    }
+    flush();
+    return html || "";
+  }
+
+  function inlineMarkdown(text) {
+    const codeSpans = [];
+    let result = text.replace(/`([^`\n]+)`/g, (_, code) => {
+      const token = `\u0000CODE${codeSpans.length}\u0000`;
+      codeSpans.push(code);
+      return token;
+    });
+    result = result.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+    result = result.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    result = result.replace(/\u0000CODE(\d+)\u0000/g, (_, index) => `<code>${codeSpans[Number(index)] || ""}</code>`);
+    return result;
+  }
+
+  function icon(id) {
+    return `<svg class="icon" aria-hidden="true"><use href="#${id}"></use></svg>`;
+  }
+
+  /* ============================== Utilities ============================== */
+  function makeId() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+    return `id_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value).replace(/`/g, "&#96;");
+  }
+
+  function isSafeImageDataUrl(value) {
+    return typeof value === "string" && /^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(value);
+  }
+
+  function formatPrice(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "0";
+    return Number.isInteger(number) ? String(number) : number.toFixed(1).replace(/\.0$/, "");
+  }
+
+  function pad(num) {
+    return String(num).padStart(2, "0");
+  }
+
+  function clockLabel(ts) {
+    const date = new Date(ts);
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function fullTimeLabel(ts) {
+    const date = new Date(ts);
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function dayKeyFor(ts) {
+    const date = new Date(ts);
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  }
+
+  function dayLabelFor(ts) {
+    const date = new Date(ts);
+    const now = new Date();
+    const today = dayKeyFor(now.getTime());
+    const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const key = dayKeyFor(ts);
+    if (key === today) return "今天";
+    if (key === dayKeyFor(yesterday.getTime())) return "昨天";
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+  }
+
+  function showToast(message, variant = "") {
+    window.clearTimeout(state.toastTimer);
+    els.toast.textContent = message;
+    els.toast.className = `toast show${variant ? ` ${variant}` : ""}`;
+    state.toastTimer = window.setTimeout(() => {
+      els.toast.className = "toast";
+    }, 3400);
+  }
+})();
+</script>
+</body>
+</html>
